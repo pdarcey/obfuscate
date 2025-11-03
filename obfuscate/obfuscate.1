@@ -1,0 +1,47 @@
+.\" Manpage for obfuscate
+.TH OBFUSCATE 1 "November 2025" "1.0" "Obfuscate Manual"
+.SH NAME
+obfuscate \- create a Swift file you can use in an app that obfuscates the input. Typically, the input is an API secret key.
+.SH SYNOPSIS
+.B obfuscate
+[\fIOPTIONS\fR] [\fIARGUMENTS\fR]
+.SH DESCRIPTION
+\fBobfuscate\fR is a command-line utility to create a Swift file you can use in an app that obfuscates the input.
+Typically, the input is an API secret key.
+
+The command will print the output to the console or, optionally, to a file in the cwd
+
+You then have a file that produces a `Secrets` enum, which allows you to retrieve the original API key without having the key anywhere in your source control system. It is also not directly within the `Secrets` file.
+
+.SH OPTIONS
+.TP
+.B -h, --help
+Show help message and exit.
+.TP
+.B -v, --version
+Display version information.
+.TP
+.B -c, --check
+Flag to run a check that the output file will decode the input correctly
+.TP
+.B -f, --fileName
+You can optionally write the output to a file, so you can import it into your app
+
+.SH ARGUMENTS
+.TP
+.B <input>
+The input you wish to obfuscate. Typically, an API key
+
+.SH EXAMPLES
+.B obfuscate -h
+.br
+Show help information.
+.TP
+.B obfuscate ABCD1234
+.br
+Produce a Secrets file that will decode the obfuscated data back to ABCD1234
+
+.SH AUTHOR
+© 2005 Xerodonia Pty Ltd
+
+

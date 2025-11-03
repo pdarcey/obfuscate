@@ -11,14 +11,14 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
-		C9E142982EB8921A004ED6DA /* CopyFiles */ = {
+		C9663F462EB8CFA90078681C /* CopyFiles */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
-			dstPath = /usr/share/man/man1/;
-			dstSubfolderSpec = 0;
+			dstPath = "";
+			dstSubfolderSpec = 7;
 			files = (
 			);
-			runOnlyForDeploymentPostprocessing = 1;
+			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXCopyFilesBuildPhase section */
 
@@ -26,9 +26,22 @@
 		C9E1429A2EB8921A004ED6DA /* obfuscate */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = obfuscate; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet section */
+		C9663F482EB8CFB30078681C /* Exceptions for "obfuscate" folder in "Copy Files" phase from "obfuscate" target */ = {
+			isa = PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet;
+			buildPhase = C9663F462EB8CFA90078681C /* CopyFiles */;
+			membershipExceptions = (
+				obfuscate.1,
+			);
+		};
+/* End PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		C9E1429C2EB8921A004ED6DA /* obfuscate */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				C9663F482EB8CFB30078681C /* Exceptions for "obfuscate" folder in "Copy Files" phase from "obfuscate" target */,
+			);
 			path = obfuscate;
 			sourceTree = "<group>";
 		};
@@ -71,7 +84,9 @@
 			buildPhases = (
 				C9E142962EB8921A004ED6DA /* Sources */,
 				C9E142972EB8921A004ED6DA /* Frameworks */,
-				C9E142982EB8921A004ED6DA /* CopyFiles */,
+				C9663F462EB8CFA90078681C /* CopyFiles */,
+				C9E142A92EB8BAB6004ED6DA /* Run Script (install to /usr/local/bin) */,
+				C9663F492EB8CFC40078681C /* Run Script (install man page) */,
 			);
 			buildRules = (
 			);
@@ -124,6 +139,50 @@
 			);
 		};
 /* End PBXProject section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		C9663F492EB8CFC40078681C /* Run Script (install man page) */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+				"$(SRCROOT)/${PRODUCT_NAME}.1",
+			);
+			name = "Run Script (install man page)";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+				"/usr/local/share/man/man1/${PRODUCT_NAME}.1",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "#!/bin/sh\nMAN_DEST_DIR=\"/usr/local/share/man/man1\"\nmkdir -p \"$MAN_DEST_DIR\"\ncp \"${SRCROOT}/${PRODUCT_NAME}/${PRODUCT_NAME}.1\" \"$MAN_DEST_DIR/${PRODUCT_NAME}.1\"\ngzip -f \"$MAN_DEST_DIR/${PRODUCT_NAME}.1\"\n";
+		};
+		C9E142A92EB8BAB6004ED6DA /* Run Script (install to /usr/local/bin) */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+				"",
+			);
+			name = "Run Script (install to /usr/local/bin)";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+				"/usr/local/bin/${PRODUCT_NAME}",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "# Path to your built binary (adjust if needed)\nAPP_PATH=\"${BUILT_PRODUCTS_DIR}/${PRODUCT_NAME}\"\n\n# Destination\nDEST=\"/usr/local/bin/${PRODUCT_NAME}\"\n\n# Ensure /usr/local/bin exists\nmkdir -p /usr/local/bin\n\n# Copy the executable (use cp -f to overwrite)\ncp -f \"$APP_PATH\" \"$DEST\"\n\n# Make sure it's executable\nchmod +x \"$DEST\"\n\necho \"✅ Installed ${PRODUCT_NAME} to /usr/local/bin\"\n\n";
+		};
+/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		C9E142962EB8921A004ED6DA /* Sources */ = {
@@ -263,6 +322,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = J6B6PF7Z9K;
 				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				PRODUCT_BUNDLE_IDENTIFIER = com.xerodonia.obfuscate;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
@@ -278,6 +338,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = J6B6PF7Z9K;
 				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				PRODUCT_BUNDLE_IDENTIFIER = com.xerodonia.obfuscate;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
