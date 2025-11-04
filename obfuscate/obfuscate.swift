@@ -91,6 +91,7 @@ struct Obfuscate: ParsableCommand {
         // Generate and print a Swift file to decode the API
         let outputString = """
         import Foundation
+        import CryptoKit
         import Playgrounds
         
         // Secrets.swift
@@ -114,7 +115,7 @@ struct Obfuscate: ParsableCommand {
             ///   - content: The encrypted content to be decrypted
             ///   - key: The key to use to decrypt it
             /// - Returns: The unencrypted string
-            func decrypt(_ content: [UInt8], _ key: [UInt8]) -> String {
+            static func decrypt(_ content: [UInt8], _ key: [UInt8]) -> String {
                 let encryptedContent = Data(content)
                 let keyData = Data(key)
                 let key = SymmetricKey(data: keyData)
