@@ -20,6 +20,8 @@
 
 set -u
 
+SRCROOT=$(cd "$(dirname "$0")/.." && pwd)
+
 OBFUSCATE=${OBFUSCATE:-$(command -v obfuscate)}
 if [ -z "$OBFUSCATE" ] || [ ! -x "$OBFUSCATE" ]; then
     echo "❌ obfuscate binary not found. Build the project, or set OBFUSCATE=/path/to/obfuscate"
@@ -320,6 +322,15 @@ if command -v swiftlint > /dev/null; then
 else
     echo "  ⏭️  skipping SwiftLint check (swiftlint not installed)"
 fi
+
+echo "--version"
+
+EXPECTED_VERSION=$(sed -nE 's/^ *static let version = "([^"]+)"$/\1/p' "$SRCROOT/obfuscate/obfuscate.swift")
+check "version is declared in the source" [ -n "$EXPECTED_VERSION" ]
+VERSION_OUTPUT=$("$OBFUSCATE" --version 2>&1)
+check "--version exits 0" [ $? -eq 0 ]
+check "--version prints exactly the version ($EXPECTED_VERSION)" [ "$VERSION_OUTPUT" = "$EXPECTED_VERSION" ]
+check "-h shows an overview" sh -c '"$1" -h | grep -q "^OVERVIEW: "' _ "$OBFUSCATE"
 
 echo
 echo "$PASSED passed, $FAILED failed"

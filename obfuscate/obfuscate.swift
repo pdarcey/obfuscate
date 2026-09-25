@@ -31,6 +31,15 @@ import CryptoKit
 /// keys in plain sight.
 @main
 struct Obfuscate: ParsableCommand {
+    /// The tool's version, shown by `obfuscate --version`. Update this for each release.
+    static let version = "1.0.0"
+
+    /// The command's overview (shown at the top of `-h`) and version.
+    static let configuration = CommandConfiguration(
+        abstract: "Generate a Swift file that obfuscates secrets, such as API keys.",
+        version: version
+    )
+
     /// Flag to run a check that the output file will decode the input correctly
     @Flag(
         name: .shortAndLong,
