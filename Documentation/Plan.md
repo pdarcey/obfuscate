@@ -25,6 +25,10 @@ To decide with Paul first:
 
 Then: the logic in `ObfuscateKit` with unit tests, the tool's I/O, end-to-end tests (secrets never echoed), and updates to the man page, Readme and `-h`. Update the CAVEATS section, which currently only has the `HIST_IGNORE_SPACE` tip.
 
+### 3. #421: Clarity shows v0.0.1
+
+Set the target's `MARKETING_VERSION` to 1.0.0 (Xcode MCP `UpdateTargetBuildSetting`) so it matches `Obfuscate.version`, keep the two in sync (a test, or a note in CLAUDE.md), then `project_refresh` in Clarity. Paul also needs to update the project's help text in the Clarity app, because it still shows the old Readme.
+
 ## Ideas (not yet in Clarity)
 
 - A Release/`make install` path, if installing Debug builds on every ⌘B becomes a nuisance.

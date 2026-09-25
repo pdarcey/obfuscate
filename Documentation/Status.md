@@ -6,7 +6,7 @@
 
 **Version 1.0.0, and in good health.** The tool is feature-complete for 1.0: plain and named (`--key`) secrets, `--check`, `-f`, and `--version`. It builds in Swift 6 mode for macOS 26 with zero warnings and zero SwiftLint findings. The core logic is in the local package `ObfuscateKit`, with unit tests. The project scaffolding (docs, `.gitignore`, lint config, lint build phase) is in place.
 
-Two issues are open: #419 (a misleading error message) and #414 (reading secrets from stdin). See `Plan.md`.
+Three issues are open: #419 (a misleading error message), #414 (reading secrets from stdin) and #421 (Clarity shows v0.0.1). See `Plan.md`.
 
 ## Health
 
@@ -38,3 +38,4 @@ Two issues are open: #419 (a misleading error message) and #414 (reading secrets
 
 - **#419:** unknown option on its own reports "Provide at least one secret" (the exit status, 64, is correct)
 - **#414:** read secrets from stdin, to keep them out of shell history and `ps`
+- **#421:** set `MARKETING_VERSION` to 1.0.0 so Clarity shows the right version
