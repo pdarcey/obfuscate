@@ -38,9 +38,46 @@ struct Obfuscate: ParsableCommand {
     @Option(name: .shortAndLong, help: "The file to output to. [Will add .swift, if necessary]")
     var fileName: String? = nil
 
+    /// Secrets with a chosen property name, each given as `name=secret`
+    @Option(
+        name: .shortAndLong,
+        help: ArgumentHelp(
+            "A secret, and the name of the Secrets property that returns it. Repeat for more secrets.",
+            valueName: "name=secret"
+        )
+    )
+    var key: [String] = []
+
     /// The secret you wish to obfuscate. Typically an API key
-    @Argument(help: "The secret(s) you wish to obfuscate. Add as many as you wish, separated by spaces")
-    var secrets: [String]
+    @Argument(help: "Secret(s) to obfuscate, separated by spaces. These become Secrets.apiKey1, apiKey2, …")
+    var secrets: [String] = []
+
+    mutating func validate() throws {
+        _ = try allSecrets()
+    }
+
+    /// Every secret to obfuscate: the `--key` secrets first, in order, then the plain ones as `apiKey1`, `apiKey2`, …
+    /// - Throws: `ValidationError` if there are no secrets, a `--key` is malformed, or two secrets share a name.
+    func allSecrets() throws -> [NamedSecret] {
+        let named = try key.enumerated().map { offset, argument in
+            try NamedSecret(parsing: argument, position: offset + 1)
+        }
+        let unnamed = secrets.enumerated().map { offset, value in
+            NamedSecret(value: value, number: offset + 1)
+        }
+        let all = named + unnamed
+
+        guard !all.isEmpty else {
+            throw ValidationError("Provide at least one secret, either as an argument or with --key name=secret.")
+        }
+
+        var seenNames: Set<String> = []
+        for secret in all where !seenNames.insert(secret.name).inserted {
+            throw ValidationError("The name '\(secret.name)' is used more than once. Each secret needs its own name.")
+        }
+
+        return all
+    }
 
     mutating func run() throws {
         // Set up random salt
@@ -54,9 +91,9 @@ struct Obfuscate: ParsableCommand {
         var keys: [String] = []
         var playgrounds = ""
         var index = 1
-        var checkDict: [ String: Encrypted] = [:]
-        for secret in secrets {
-            let encrypted = encrypt(secret)
+        var checks: [(secret: NamedSecret, encrypted: Encrypted)] = []
+        for secret in try allSecrets() {
+            let encrypted = encrypt(secret.value)
             let aByteString = encrypted.content.map { x in
                 "0x\(String(format:"%02X", x))"
             }.joined(separator: ", ")
@@ -67,11 +104,18 @@ struct Obfuscate: ParsableCommand {
 
             // Never include the secret itself in the output, not even in a comment:
             // the generated file is meant to be committed to source control.
+            let docComment = if secret.hasGeneratedName {
+                """
+                    /// Obfuscated secret.
+                    ///
+                    /// Rename `\(secret.name)` (here and in the `#Playground` below) to describe what it's for.
+                """
+            } else {
+                "    /// Obfuscated secret `\(secret.name)`."
+            }
             let key = """
-                /// Obfuscated secret \(index).
-                ///
-                /// Rename `apiKey\(index)` (here and in the `#Playground` below) to describe what it's for.
-                static var apiKey\(index): String {
+            \(docComment)
+                static var \(secret.name): String {
                     let a: [UInt8] = [
                         \(aByteString)
                     ]
@@ -85,10 +129,10 @@ struct Obfuscate: ParsableCommand {
             """
             keys.append(key)
 
-            let playground = "let check\(index) = Secrets.apiKey\(index)\n"
+            let playground = "let check\(index) = Secrets.\(secret.name)\n"
             playgrounds += playground
             index += 1
-            checkDict[secret] = encrypted
+            checks.append((secret, encrypted))
         }
         // Generate and print a Swift file to decode the API
         let outputString = """
@@ -148,17 +192,13 @@ struct Obfuscate: ParsableCommand {
 
         if check {
             //            print("\n")
-            for key in checkDict.keys {
-                if let encrypted = checkDict[key] {
-                    let decoded = decrypt(encrypted.content, encrypted.key)
-                    print("Decoding produces:\n\(decoded)")
-                    if decoded == key {
-                        print("✅ Encoding and decoding works!")
-                    } else {
-                        print("Fail!")
-                    }
+            for (secret, encrypted) in checks {
+                let decoded = decrypt(encrypted.content, encrypted.key)
+                print("Decoding \(secret.name) produces:\n\(decoded)")
+                if decoded == secret.value {
+                    print("✅ Encoding and decoding works!")
                 } else {
-                    print("Something's gone wrong!")
+                    print("Fail!")
                 }
             }
         }

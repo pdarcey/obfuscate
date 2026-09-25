@@ -136,6 +136,19 @@ let check3 = Secrets.apiKey3
 }
 ```
 
+### Naming your secrets
+
+Plain secrets become `Secrets.apiKey1`, `Secrets.apiKey2`, and so on. To choose the property names yourself, use `--key name=secret` (or `-k`), once per secret:
+
+```bash
+obfuscate --key openAI=sk-abc123 --key stripe=pk_live_xyz
+```
+
+This generates `Secrets.openAI` and `Secrets.stripe`. The name is everything before the first `=`, so secrets containing `=` (such as base64) work as expected. Names must be valid Swift identifiers.
+
+> [!NOTE]
+> The generated file never contains your secrets in plain text, not even in comments.
+
 ## Contributing
 
 Pull requests are welcome. For major changes, please open an issue first

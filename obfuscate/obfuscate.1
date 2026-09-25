@@ -26,6 +26,9 @@ Flag to run a check that the output file will decode the input correctly
 .TP
 .B -f, --fileName
 You can optionally write the output to a file, so you can import it into your app
+.TP
+.B -k, --key \fIname\fR=\fIsecret\fR
+A secret, and the name of the \fBSecrets\fR property that returns it. The name is everything before the first \fB=\fR, so the secret itself may contain \fB=\fR. Repeat for more secrets. Plain secrets passed as arguments are named \fBapiKey1\fR, \fBapiKey2\fR, and so on.
 
 .SH ARGUMENTS
 .TP
@@ -40,6 +43,10 @@ Show help information.
 .B obfuscate ABCD1234
 .br
 Produce a Secrets file that will decode the obfuscated data back to ABCD1234
+.TP
+.B obfuscate --key openAI=sk-abc123 --key stripe=pk_live_xyz
+.br
+Produce a Secrets file with properties \fBSecrets.openAI\fR and \fBSecrets.stripe\fR
 
 .SH AUTHOR
 © 2005 Xerodonia Pty Ltd

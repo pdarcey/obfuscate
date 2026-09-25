@@ -69,27 +69,97 @@ done
 check "one property per secret" \
     [ "$(grep -c 'static var apiKey[0-9]*: String' Secrets.swift)" -eq "${#SECRETS[@]}" ]
 
-echo "Generated file must compile and decode"
-
-# A tiny program that prints each decoded secret on its own line.
-{
-    for i in $(seq 1 "${#SECRETS[@]}"); do
-        echo "print(Secrets.apiKey$i)"
+# check_decodes <file> <property> <expected> [<property> <expected> ...]
+# Compiles <file> with a tiny program that prints each property, and checks
+# each one decodes to its expected secret.
+check_decodes() {
+    local file=$1
+    shift
+    local properties=() expected=()
+    while [ $# -gt 0 ]; do
+        properties+=("$1")
+        expected+=("$2")
+        shift 2
     done
-} > main.swift
 
-if swiftc -o decode Secrets.swift main.swift > compile.log 2>&1; then
-    pass "Secrets.swift compiles"
-    i=0
+    for property in "${properties[@]}"; do
+        echo "print(Secrets.$property)"
+    done > main.swift
+
+    if ! swiftc -o decode "$file" main.swift > compile.log 2>&1; then
+        fail "$file compiles"
+        sed 's/^/      /' compile.log
+        return
+    fi
+    pass "$file compiles"
+
+    local i=0 decoded
     while IFS= read -r decoded; do
-        check "apiKey$((i + 1)) decodes to the original secret" [ "$decoded" = "${SECRETS[$i]}" ]
+        check "${properties[$i]} decodes to the original secret" [ "$decoded" = "${expected[$i]}" ]
         i=$((i + 1))
     done < <(./decode)
-    check "decodes every secret" [ "$i" -eq "${#SECRETS[@]}" ]
-else
-    fail "Secrets.swift compiles"
-    sed 's/^/      /' compile.log
-fi
+    check "decodes every secret in $file" [ "$i" -eq "${#properties[@]}" ]
+}
+
+echo "Generated file must compile and decode"
+
+ARGS=()
+for i in "${!SECRETS[@]}"; do
+    ARGS+=("apiKey$((i + 1))" "${SECRETS[$i]}")
+done
+check_decodes Secrets.swift "${ARGS[@]}"
+
+echo "Named secrets (--key name=secret)"
+
+NAMED_1="sk-live-named-openai-9d8c7b"
+NAMED_2="pk=with=equals=signs=="
+PLAIN="plain-unnamed-secret-5e4f"
+STDOUT=$("$OBFUSCATE" -f Named --key "openAI=$NAMED_1" -k "stripe_2=$NAMED_2" -- "$PLAIN" 2>&1)
+check "exits 0" [ $? -eq 0 ]
+check "names a property openAI" grep -q 'static var openAI: String' Named.swift
+check "names a property stripe_2" grep -q 'static var stripe_2: String' Named.swift
+check "names the plain secret apiKey1" grep -q 'static var apiKey1: String' Named.swift
+check "named properties don't ask to be renamed" [ "$(grep -c 'Rename `' Named.swift)" -eq 1 ]
+for secret in "$NAMED_1" "$NAMED_2" "$PLAIN"; do
+    check "file doesn't contain: $secret" sh -c '! grep -qF -- "$1" Named.swift' _ "$secret"
+    check "stdout doesn't contain: $secret" sh -c '! printf "%s" "$2" | grep -qF -- "$1"' _ "$secret" "$STDOUT"
+done
+check_decodes Named.swift openAI "$NAMED_1" stripe_2 "$NAMED_2" apiKey1 "$PLAIN"
+
+echo "Invalid input is rejected, without echoing secrets"
+
+# rejects <description> <secret that must not be echoed> <expected message> <obfuscate args...>
+rejects() {
+    local description=$1 secret=$2 expected=$3
+    shift 3
+    rm -f Rejected.swift
+    local output
+    output=$("$OBFUSCATE" -f Rejected "$@" 2>&1)
+    check "$description: exits non-zero" [ $? -ne 0 ]
+    check "$description: explains why" sh -c 'printf "%s" "$2" | grep -qF -- "$1"' _ "$expected" "$output"
+    check "$description: writes no file" [ ! -e Rejected.swift ]
+    check "$description: doesn't echo the secret" sh -c '! printf "%s" "$2" | grep -qF -- "$1"' _ "$secret" "$output"
+}
+
+rejects "no secrets at all" "(none)" "Provide at least one secret"
+rejects "--key without '='" "sk-noequals-secret-123" "has no '='" \
+    --key "sk-noequals-secret-123"
+rejects "--key with an unnamed base64 secret" "abc/defSECRET" "the name before '=' must start with" \
+    --key "abc/defSECRET=="
+rejects "--key with an empty secret" "QWxhZGRpSECRET" "the secret after '=' is empty" \
+    --key "QWxhZGRpSECRET="
+rejects "--key name starting with a digit" "digit-secret-1" "the name before '=' must start with" \
+    --key "1abc=digit-secret-1"
+rejects "--key with a Swift keyword" "keyword-secret-1" "'class' is reserved" \
+    --key "class=keyword-secret-1"
+rejects "--key named after a Secrets member" "member-secret-1" "'decrypt' is reserved" \
+    --key "decrypt=member-secret-1"
+rejects "duplicate --key names" "dup-secret-1" "'dup' is used more than once" \
+    --key "dup=dup-secret-1" --key "dup=dup-secret-2"
+rejects "--key clashing with a generated name" "collide-secret-1" "'apiKey1' is used more than once" \
+    --key "apiKey1=collide-secret-1" "plain-collide-2"
+rejects "--key identifies which one is wrong" "second-bad-secret" "--key #2" \
+    --key "good=first-good-secret" --key "second-bad-secret"
 
 echo
 echo "$PASSED passed, $FAILED failed"
