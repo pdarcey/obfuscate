@@ -23,25 +23,27 @@ Think of the tool as a small restaurant kitchen:
 - **The food taster (`verifyRoundTrip`)** tastes every dish before it leaves the kitchen when you ask for `--check`, and reports "✅ openAI decodes correctly" without ever saying what it tasted like.
 - **The pass (stdout vs stderr)**: only food goes out through the pass (stdout). Chatter ("Saved to…", check results, errors) goes through the back door (stderr), so `obfuscate KEY > Secrets.swift` gives you a clean file.
 
+The kitchen itself (the maître d', the chef, the recipe book and the food taster) lives in a separate building: the local Swift package **`ObfuscateKit`**. The waiter and the pass stay in the tool. That split exists purely so the kitchen can be inspected (unit tested) without customers in the room.
+
 Around the kitchen sits the **delivery van**: two shell scripts in `Scripts/` that Xcode runs on every build to install the tool and its man page into `/usr/local`.
 
 ## 3. The Codebase Map
 
 ```
-obfuscate/                The tool itself
-  obfuscate.swift         The command: options, validation, generate(), check, crypto
-  NamedSecret.swift       --key parsing and the reserved-names list
-  GeneratedSource.swift   The template for Secrets.swift
-  ObfuscateError.swift    What goes wrong, why, and what to do about it
+obfuscate/                The command-line tool: just the waiter and the pass
+  obfuscate.swift         The command: options, validation, generate(), --check output
   StandardError.swift     print(…, to: &standardError)
-  UInt8+HexLiteral.swift  0x0F formatting, without String(format:)
   obfuscate.1             The man page
-Scripts/                  install-binary.sh, install-man-page.sh, and their tests;
-                          test-obfuscate.sh, the end-to-end suite
+ObfuscateKit/             The kitchen: a local Swift package with the real logic
+  Sources/ObfuscateKit/   NamedSecret, SecretList, InputError, SecretCipher, EncryptedSecret,
+                          RoundTripResult, GeneratedSource, ObfuscateError, UInt8+HexLiteral
+  Tests/ObfuscateKitTests/  Swift Testing unit tests
+Scripts/                  install-binary.sh, install-man-page.sh, swiftlint.sh (build phases);
+                          test-obfuscate.sh, test-install-scripts.sh, test-all.sh (tests)
 Documentation/            You are here
 ```
 
-Lost? Start at `generate()` in `obfuscate.swift`, which reads top to bottom like the recipe it is.
+Lost? Start at `generate()` in `obfuscate.swift`, which reads top to bottom like the recipe it is, then follow the calls into `ObfuscateKit`. To check everything still works, run `Scripts/test-all.sh`.
 
 ## 4. Tech Stack & Why
 
@@ -76,10 +78,24 @@ The most embarrassing one. Every generated property began with `// Key for sk-li
 
 When the generated file gained a nested `enum ObfuscateError`, nobody told the reserved-names list, which still protected the long-gone `salt`. So `--key ObfuscateError=…` happily generated a file that failed with "invalid redeclaration". It was caught while writing the man page, of all things. **Documentation is a code review.**
 
+### The tests Xcode couldn't see
+
+Moving the logic into `ObfuscateKit` so it could be unit tested went smoothly: 39 Swift Testing tests, all green in `swift test`. Then we tried to run them with ⌘U, and they weren't there. They couldn't be added to the app's scheme, a new test plan's "+" didn't list them, and even Xcode's own auto-generated `ObfuscateKit` scheme cheerfully ran **0 tests**. It turns out a local package that's only a *dependency* of a project keeps its test target to itself. The pragmatic answer was `Scripts/test-all.sh`: one command, three suites, eleven seconds, and a one-line verdict each. The lesson: check what the IDE will actually do before promising a workflow. (We also cleaned up the two empty test plans that our attempts left behind.)
+
+### The upgrade nobody asked for
+
+Adding the local package made Xcode re-resolve every package, and `swift-argument-parser` quietly moved from 1.6.2 to 1.8.2 in `Package.resolved`. Nothing broke (all the suites passed), but a dependency upgrade should be a decision, not a side effect. We kept it, said so in the commit message, and added a gotcha to CLAUDE.md: after touching packages in Xcode, read the `Package.resolved` diff.
+
+### Proving the linter speaks Xcode
+
+A SwiftLint build phase that "runs fine" could just as easily be silently doing nothing. So we planted a file with three trailing spaces, built, and asked the Xcode MCP for the build's warnings. There it was: "Trailing Whitespace Violation" as a proper Xcode issue with file and line. Then we deleted the plant and rebuilt to confirm the warning had gone.
+
 ### "Aha!" moments
 
 - **Test the test.** For every bug fix, the new tests were run against the *previous* build first. If a test passes on the buggy code, it isn't testing anything.
 - **Mask the randomness.** The output is random every run, so comparing it seemed impossible, until we replaced every `0xNN` with a placeholder. Suddenly a pure refactor could be proven byte-identical, and the Readme's example could be checked on every test run.
+- **Keep the kitchen out of the dining room.** `ObfuscateKit` doesn't know ArgumentParser exists: it throws its own `InputError`, and the tool translates it into a usage error. The library stays testable and reusable, and the messages stay identical.
+- **A guard test for a whole class of bug.** Rather than testing that `ObfuscateError` is reserved, one unit test scans the generated `Secrets` enum for *every* member and checks each is a reserved `--key` name. It caught a deliberately recreated #420, and it will catch the next one too.
 - **ArgumentParser only prints `errorDescription`.** We found this by reading its source, not by guessing. `LocalizedError` has four properties (`errorDescription`, `failureReason`, `recoverySuggestion`, `helpAnchor`), so we print the rest ourselves.
 
 ## 6. Engineer's Wisdom
@@ -92,7 +108,8 @@ When the generated file gained a nested `enum ObfuscateError`, nobody told the r
 
 ## 7. If I Were Starting Over...
 
-- **Put the logic in a library from day one.** A command-line target can't be imported by unit tests, so real unit tests need the core in a package. We're doing that now (`ObfuscateKit`), but it's easier at the start.
+- **Put the logic in a library from day one.** A command-line target can't be imported by unit tests, so real unit tests need the core in a package. We got there (`ObfuscateKit`), but it meant a move, an Xcode step, and a detour through test plans. Starting that way costs nothing.
+- **Check the IDE's workflow before promising it.** We said "tests run in Xcode too", and in this setup they don't. `swift test` and `test-all.sh` are the honest answer.
 - **Write the "never leak a secret" test first.** It's the tool's reason for existing, so it should have been the first test, not a bug fix.
 - **Read secrets from stdin.** Arguments end up in shell history. It's on the list (#414).
 - **Keep install out of Debug builds, or at least say so.** We chose to keep it, with a note in the build log, because trying a change straight after ⌘B is genuinely handy.

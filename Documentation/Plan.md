@@ -2,24 +2,37 @@
 
 Issues are tracked in Clarity (project "obfuscate"). This is the order of work; Clarity has the details.
 
-## In progress
-
-### #411: Standard project files and unit tests
-
-1. ✅ `.gitignore`, `.swiftlint.yml`, `.claude/` folders
-2. ✅ `Documentation/` (CLAUDE.md, Journal, Plan, Status) and a root `CLAUDE.md` that imports `Documentation/CLAUDE.md`
-3. ✅ Unit tests (Swift Testing), via a local Swift package:
-   - Move the core logic into `ObfuscateKit/`: `NamedSecret`, `GeneratedSource`, `ObfuscateError`, `UInt8.hexLiteral`, and a new `SecretCipher` (encrypt/decrypt)
-   - Make `verifyRoundTrip` return results, so the failed-check path can be unit tested (the gap left by #410)
-   - Paul adds the local package to the Xcode project (File ▸ Add Package Dependencies ▸ Add Local…)
-   - Tests run with `swift test` and in Xcode
-4. ✅ SwiftLint build phase: `Scripts/swiftlint.sh`, called from a Run Script phase that Paul adds in Xcode
+Before starting: build in Xcode (it installs the tool), then run `Scripts/test-all.sh`. All three suites should pass.
 
 ## Next
 
-- **#419:** `obfuscate -v` (an unknown option on its own) says "Provide at least one secret" instead of "Unknown option". Move the "at least one secret" check out of `validate()`.
-- **#414:** read secrets from stdin (`--stdin`, or a prompt with echo off), so they stay out of shell history and `ps`.
+### 1. #419: unknown option on its own reports the wrong error
 
-## Done (1.0.0)
+`obfuscate -v` (or `obfuscate --bogus`) with no secrets says "Provide at least one secret" rather than "Unknown option '-v'", because ArgumentParser runs `validate()` before it reports unknown options. It still exits 64, so this is only about the message.
 
-#406, #407, #408, #409, #410, #412, #413, #415, #416, #417, #418, #420. See `Status.md`.
+Suggested approach:
+- Keep the per-`--key` checks in `validate()`, but move the "no secrets at all" check (`InputError.noSecrets`) to `run()`/`generate()`, so ArgumentParser's unknown-option error wins.
+- Unit test in `ObfuscateKit` if any logic moves there; end-to-end tests in `test-obfuscate.sh` for `obfuscate -v` and `obfuscate --bogus` ("Unknown option", exit 64, no secret echoed), and for no arguments at all (still "Provide at least one secret").
+
+### 2. #414: read secrets from stdin
+
+Secrets passed as arguments end up in shell history and are briefly visible in `ps`.
+
+To decide with Paul first:
+- The interface: a `--stdin` flag, and/or reading stdin automatically when there are no arguments and stdin isn't a terminal. One secret per line?
+- Naming: how `--key name=secret` works with stdin (for example, lines of `name=secret`).
+- An interactive prompt with echo turned off, when stdin is a terminal.
+
+Then: the logic in `ObfuscateKit` with unit tests, the tool's I/O, end-to-end tests (secrets never echoed), and updates to the man page, Readme and `-h`. Update the CAVEATS section, which currently only has the `HIST_IGNORE_SPACE` tip.
+
+## Ideas (not yet in Clarity)
+
+- A Release/`make install` path, if installing Debug builds on every ⌘B becomes a nuisance.
+- A Homebrew tap, if the tool is shared more widely.
+
+## Done
+
+- **1.0.0:** #406, #407, #408, #409, #410, #412, #413, #415, #416, #417, #418, #420
+- **Project housekeeping:** #411 (`.gitignore`, `.swiftlint.yml`, `Documentation/`, `ObfuscateKit` with unit tests, `test-all.sh`, SwiftLint build phase)
+
+See `Status.md` for details.
