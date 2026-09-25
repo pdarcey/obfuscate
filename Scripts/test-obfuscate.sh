@@ -83,7 +83,7 @@ check_decodes() {
     done
 
     for property in "${properties[@]}"; do
-        echo "print(Secrets.$property)"
+        echo "print(try Secrets.$property)"
     done > main.swift
 
     if ! swiftc -o decode "$file" main.swift > compile.log 2>&1; then
@@ -196,6 +196,101 @@ check "unwritable -f path: exits non-zero" [ $? -ne 0 ]
 check "unwritable -f path: reports an error: on stderr" grep -q "^error: Unable to write to locked/Nope.swift" locked-stderr.txt
 check "unwritable -f path: prints nothing to stdout" [ ! -s locked-stdout.txt ]
 check "unwritable -f path: doesn't echo the secret" sh -c '! grep -qF "unwritable-secret-4a5b" locked-stderr.txt'
+
+echo "Generated file has no force-try, unused salt, or lossy decoding"
+
+check "no try! in the generated file" sh -c '! grep -q "try!" Saved.swift'
+check "no salt in the generated file" sh -c '! grep -qi "salt" Saved.swift'
+check "no String(decoding: in the generated file" sh -c '! grep -q "String(decoding:" Saved.swift'
+check "accessors are throwing getters" grep -q "get throws {" Saved.swift
+check "generated file declares Secrets.ObfuscateError" \
+    grep -q "enum ObfuscateError: Error, LocalizedError" Saved.swift
+for property in errorDescription failureReason recoverySuggestion helpAnchor; do
+    check "Secrets.ObfuscateError implements $property" grep -q "var $property: String?" Saved.swift
+done
+
+# catch_program <property>: a program that reads a secret and reports what was thrown.
+catch_program() {
+    cat <<SWIFT
+do {
+    _ = try Secrets.$1
+    print("NO ERROR")
+} catch let error as Secrets.ObfuscateError {
+    print("CAUGHT")
+    print(error.errorDescription ?? "nil")
+    print(error.failureReason ?? "nil")
+    print(error.recoverySuggestion ?? "nil")
+    print(error.helpAnchor ?? "no help anchor")
+} catch {
+    print("OTHER ERROR")
+}
+SWIFT
+}
+
+echo "A corrupted secret throws Secrets.ObfuscateError.decryptionFailed"
+
+# Flip the lowest bit of the first byte of apiKey1's encrypted content.
+python3 - Saved.swift Corrupted.swift <<'PY'
+import re, sys
+source = open(sys.argv[1]).read()
+match = re.search(r"let a: \[UInt8\] = \[\s*0x([0-9A-F]{2})", source)
+flipped = "0x%02X" % (int(match.group(1), 16) ^ 0x01)
+open(sys.argv[2], "w").write(source[:match.start(1) - 2] + flipped + source[match.end(1):])
+PY
+catch_program apiKey1 > main.swift
+if swiftc -o corrupted Corrupted.swift main.swift > compile.log 2>&1; then
+    OUTPUT=$(./corrupted 2>&1)
+    check "corrupted secret: doesn't crash" [ $? -eq 0 ]
+    check "corrupted secret: throws Secrets.ObfuscateError" [ "$(echo "$OUTPUT" | head -1)" = "CAUGHT" ]
+    check "corrupted secret: errorDescription" sh -c 'echo "$1" | grep -qx "Couldn.t decrypt a secret."' _ "$OUTPUT"
+    check "corrupted secret: failureReason" sh -c 'echo "$1" | grep -q "^CryptoKit reported: "' _ "$OUTPUT"
+    check "corrupted secret: recoverySuggestion" sh -c 'echo "$1" | grep -q "Regenerate it with the obfuscate tool"' _ "$OUTPUT"
+    check "corrupted secret: no helpAnchor" sh -c 'echo "$1" | grep -qx "no help anchor"' _ "$OUTPUT"
+else
+    fail "Corrupted.swift compiles"
+    sed 's/^/      /' compile.log
+fi
+
+echo "A secret that isn't UTF-8 throws Secrets.ObfuscateError.invalidUTF8"
+
+# Properly encrypt bytes that aren't valid UTF-8, then splice them into a generated file.
+cat > seal.swift <<'SWIFT'
+import CryptoKit
+import Foundation
+let key = SymmetricKey(size: .bits256)
+let sealed = try ChaChaPoly.seal(Data([0xFF, 0xFE, 0xFD]), using: key).combined
+func hex(_ bytes: some Sequence<UInt8>) -> String {
+    bytes.map { "0x" + String($0, radix: 16, uppercase: true).leftPadded }.joined(separator: ", ")
+}
+extension String { var leftPadded: String { count == 1 ? "0" + self : self } }
+print(hex(sealed))
+print(key.withUnsafeBytes { hex($0) })
+SWIFT
+if swiftc -o seal seal.swift > compile.log 2>&1 && ./seal > sealed.txt; then
+    python3 - Saved.swift NotUTF8.swift sealed.txt <<'PY'
+import re, sys
+source = open(sys.argv[1]).read()
+content, key = open(sys.argv[3]).read().splitlines()
+source = re.sub(r"(let a: \[UInt8\] = \[\s*)[^\]]*?(\s*\])", lambda m: m.group(1) + content + m.group(2), source, count=1)
+source = re.sub(r"(let b: \[UInt8\] = \[\s*)[^\]]*?(\s*\])", lambda m: m.group(1) + key + m.group(2), source, count=1)
+open(sys.argv[2], "w").write(source)
+PY
+    catch_program apiKey1 > main.swift
+    if swiftc -o notutf8 NotUTF8.swift main.swift > compile.log 2>&1; then
+        OUTPUT=$(./notutf8 2>&1)
+        check "non-UTF-8 secret: throws Secrets.ObfuscateError" [ "$(echo "$OUTPUT" | head -1)" = "CAUGHT" ]
+        check "non-UTF-8 secret: errorDescription" \
+            sh -c 'echo "$1" | grep -qx "A decrypted secret isn.t valid UTF-8 text."' _ "$OUTPUT"
+        check "non-UTF-8 secret: failureReason" \
+            sh -c 'echo "$1" | grep -qx "The decrypted bytes don.t form a valid UTF-8 string."' _ "$OUTPUT"
+    else
+        fail "NotUTF8.swift compiles"
+        sed 's/^/      /' compile.log
+    fi
+else
+    fail "helper that seals non-UTF-8 bytes compiles and runs"
+    sed 's/^/      /' compile.log
+fi
 
 echo
 echo "$PASSED passed, $FAILED failed"

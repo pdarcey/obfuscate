@@ -149,6 +149,16 @@ This generates `Secrets.openAI` and `Secrets.stripe`. The name is everything bef
 > [!NOTE]
 > The generated file never contains your secrets in plain text, not even in comments.
 
+### Using your secrets
+
+Each secret is a throwing property, so read it with `try`:
+
+```swift
+let apiKey = try Secrets.openAI
+```
+
+It should never throw. If it does, `Secrets.swift` has been edited or corrupted, and the error is a `Secrets.ObfuscateError` with a description, a reason and a recovery suggestion. You decide how to handle it: for example, log it and disable the feature that needs the key, rather than crash.
+
 ## Contributing
 
 Pull requests are welcome. For major changes, please open an issue first
