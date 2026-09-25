@@ -96,6 +96,17 @@ check "leaves no temporary files" [ "$(ls "$BIN")" = "obfuscate" ]
 BUILT_PRODUCTS_DIR="$PRODUCTS" BIN_DEST_DIR="$BIN" "$SCRIPT_DIR/install-binary.sh" > /dev/null 2>&1
 check "reinstall exits 0" [ $? -eq 0 ]
 
+# Debug builds are installed too, but with a note saying so
+OUT=$(CONFIGURATION=Debug BUILT_PRODUCTS_DIR="$PRODUCTS" BIN_DEST_DIR="$BIN" "$SCRIPT_DIR/install-binary.sh" 2>&1)
+check "Debug build: exits 0" [ $? -eq 0 ]
+check "Debug build: still installs" [ -x "$BIN/obfuscate" ]
+check "Debug build: notes it's a Debug build" \
+    sh -c 'echo "$1" | grep -q "^note: Installed a Debug build of obfuscate"' _ "$OUT"
+OUT=$(CONFIGURATION=Release BUILT_PRODUCTS_DIR="$PRODUCTS" BIN_DEST_DIR="$BIN" "$SCRIPT_DIR/install-binary.sh" 2>&1)
+check "Release build: no Debug note" sh -c '! echo "$1" | grep -q "Debug build"' _ "$OUT"
+OUT=$(env -u CONFIGURATION BUILT_PRODUCTS_DIR="$PRODUCTS" BIN_DEST_DIR="$BIN" "$SCRIPT_DIR/install-binary.sh" 2>&1)
+check "run from the terminal: no Debug note" sh -c '! echo "$1" | grep -q "Debug build"' _ "$OUT"
+
 # Xcode always exports INSTALL_DIR (as /tmp/<project>.dst/...); it must be ignored
 BIN2="$WORK/bin2"
 INSTALL_DIR="$WORK/xcode-install-dir" BUILT_PRODUCTS_DIR="$PRODUCTS" BIN_DEST_DIR="$BIN2" \

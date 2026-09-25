@@ -15,6 +15,9 @@
 #   EXPANDED_CODE_SIGN_IDENTITY
 #                       Identity used to sign the installed copy. Defaults to
 #                       "-" (ad-hoc).
+#   CONFIGURATION       Build configuration (Debug, Release, ...). When it's
+#                       Debug, a note in the build log says so, because the
+#                       installed tool is then an unoptimised Debug build.
 #
 # Xcode runs Run Script phases before its own CodeSign step, so the binary this
 # script sees is unsigned. macOS kills unsigned binaries on Apple silicon, so
@@ -70,3 +73,8 @@ fi
 mv -f "$TMP" "$DEST"
 
 echo "✅ Installed $PRODUCT_NAME to $BIN_DEST_DIR"
+
+# Every build installs, including Debug builds, so make it obvious which one is installed.
+if [ "${CONFIGURATION:-}" = "Debug" ]; then
+    echo "note: Installed a Debug build of $PRODUCT_NAME. Build Release for an optimised binary."
+fi
