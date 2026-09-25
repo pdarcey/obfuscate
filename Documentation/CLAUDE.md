@@ -21,8 +21,8 @@ Current version: **1.0.0** (`Obfuscate.version` in `obfuscate/obfuscate.swift`).
 - **All tests:** `Scripts/test-all.sh` (unit, end-to-end and install-script suites, with a one-line summary each; run before every commit)
 - **Unit tests:** `cd ObfuscateKit && swift test` (Swift Testing)
 - **End-to-end tests:** `Scripts/test-obfuscate.sh` (tests the `obfuscate` on the `PATH`, or `OBFUSCATE=/path/to/obfuscate`)
-- **Install-script tests:** `Scripts/test-install-scripts.sh` (uses temporary folders only)
-- **Lint:** `swiftlint` from the repository root (must report 0 findings before committing)
+- **Build-script tests:** `Scripts/test-install-scripts.sh` (the install and SwiftLint scripts; uses temporary folders only)
+- **Lint:** runs in every Xcode build (`Scripts/swiftlint.sh`, a Run Script phase): findings show as build warnings, and error-level findings fail the build. From the terminal: `Scripts/swiftlint.sh` or `swiftlint`. Must report 0 findings before committing.
 
 ## Architecture
 

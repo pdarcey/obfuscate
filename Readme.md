@@ -255,7 +255,7 @@ Secrets passed on the command line are saved in your shell history. In zsh, with
 ## Development
 
 - The command-line tool is in `obfuscate/`. The core logic (parsing, encryption, and the template for the generated file) is in the local Swift package `ObfuscateKit/`.
-- The build's install steps are shell scripts in `Scripts/`, which the Xcode build phases call.
+- The build's install and SwiftLint steps are shell scripts in `Scripts/`, which the Xcode build phases call. SwiftLint findings appear as build warnings (install SwiftLint with `brew install swiftlint`).
 - Project notes (conventions, gotchas, plan, status and a development journal) are in `Documentation/`.
 - Run the tests from the repository root:
 
@@ -263,7 +263,7 @@ Secrets passed on the command line are saved in your shell history. In zsh, with
   Scripts/test-all.sh               # all of the below, with a summary of each
   (cd ObfuscateKit && swift test)   # unit tests (Swift Testing)
   Scripts/test-obfuscate.sh         # end-to-end tests of the installed obfuscate
-  Scripts/test-install-scripts.sh   # tests of the install scripts, in temporary folders
+  Scripts/test-install-scripts.sh   # tests of the install and SwiftLint scripts, in temporary folders
   ```
 
   `test-obfuscate.sh` tests the `obfuscate` on your `PATH`, so build first, or set `OBFUSCATE=/path/to/obfuscate`. It also checks that the example in this Readme matches the tool's real output.

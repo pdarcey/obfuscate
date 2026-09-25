@@ -136,6 +136,44 @@ else
     check "unwritable destination installs nothing" [ -z "$(ls "$LOCKED")" ]
 fi
 
+echo "swiftlint.sh"
+
+# lint_project <name> <swift source>: a temporary project containing one Swift file.
+lint_project() {
+    mkdir -p "$WORK/$1"
+    printf '%s\n' "$2" > "$WORK/$1/Example.swift"
+    echo "$WORK/$1"
+}
+
+OUT=$(SWIFTLINT=/nonexistent "$SCRIPT_DIR/swiftlint.sh" 2>&1)
+check "SwiftLint missing: exits 0" [ $? -eq 0 ]
+check "SwiftLint missing: reports a warning:" sh -c 'echo "$1" | grep -q "^warning: SwiftLint isn.t installed"' _ "$OUT"
+
+if ! command -v swiftlint > /dev/null && [ ! -x /opt/homebrew/bin/swiftlint ]; then
+    echo "  ⏭️  skipping the remaining swiftlint.sh tests (swiftlint not installed)"
+else
+    CLEAN=$(lint_project lint-clean 'let greeting = "Hello"')
+    OUT=$(SRCROOT="$CLEAN" "$SCRIPT_DIR/swiftlint.sh" 2>&1)
+    check "clean code: exits 0" [ $? -eq 0 ]
+    check "clean code: no findings" [ -z "$OUT" ]
+
+    WARNING=$(lint_project lint-warning 'let greeting = "Hello"   ')
+    OUT=$(SRCROOT="$WARNING" "$SCRIPT_DIR/swiftlint.sh" 2>&1)
+    check "warning-level finding: exits 0" [ $? -eq 0 ]
+    check "warning-level finding: reported as an Xcode warning:" \
+        sh -c 'echo "$1" | grep -q "Example.swift:1:.*warning: "' _ "$OUT"
+
+    ERROR=$(lint_project lint-error 'let value = try! JSONSerialization.data(withJSONObject: [])')
+    OUT=$(SRCROOT="$ERROR" "$SCRIPT_DIR/swiftlint.sh" 2>&1)
+    STATUS=$?
+    check "error-level finding: exits non-zero, failing the build" [ "$STATUS" -ne 0 ]
+    check "error-level finding: reported as an Xcode error:" \
+        sh -c 'echo "$1" | grep -q "Example.swift:1:.*error: .*force_try"' _ "$OUT"
+
+    OUT=$(env -u SRCROOT "$SCRIPT_DIR/swiftlint.sh" 2>&1)
+    check "this repository lints clean" sh -c '[ $1 -eq 0 ] && [ -z "$2" ]' _ $? "$OUT"
+fi
+
 echo
 echo "$PASSED passed, $FAILED failed"
 [ "$FAILED" -eq 0 ]

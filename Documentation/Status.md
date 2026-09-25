@@ -11,9 +11,9 @@
 | Area | State |
 |---|---|
 | Build | ✅ Swift 6, macOS 26, no warnings |
-| SwiftLint | ✅ 0 findings (tool). The generated file passes the default rules. |
+| SwiftLint | ✅ 0 findings; runs in every build. The generated file passes the default rules. |
 | End-to-end tests | ✅ `Scripts/test-obfuscate.sh`: 145 passing |
-| Install-script tests | ✅ `Scripts/test-install-scripts.sh`: 33 passing |
+| Build-script tests | ✅ `Scripts/test-install-scripts.sh`: 42 passing |
 | Unit tests | ✅ `ObfuscateKit`: 39 Swift Testing tests in 8 suites (`swift test`; not runnable from Xcode, see CLAUDE.md) |
 | All suites | ✅ `Scripts/test-all.sh` |
 | Dependencies | swift-argument-parser 1.8.2 (upgraded from 1.6.2 when ObfuscateKit was added) |
@@ -32,6 +32,6 @@
 
 ## Open
 
-- **#411:** standard project files ✅, Documentation ✅, unit tests ✅, SwiftLint build phase ⏳
+- **#411:** standard project files ✅, Documentation ✅, unit tests ✅, SwiftLint build phase ✅
 - **#419:** unknown option on its own reports the wrong error
 - **#414:** read secrets from stdin

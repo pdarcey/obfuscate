@@ -13,7 +13,7 @@ Issues are tracked in Clarity (project "obfuscate"). This is the order of work; 
    - Make `verifyRoundTrip` return results, so the failed-check path can be unit tested (the gap left by #410)
    - Paul adds the local package to the Xcode project (File ▸ Add Package Dependencies ▸ Add Local…)
    - Tests run with `swift test` and in Xcode
-4. ⏳ SwiftLint build phase: `Scripts/swiftlint.sh`, called from a Run Script phase that Paul adds in Xcode
+4. ✅ SwiftLint build phase: `Scripts/swiftlint.sh`, called from a Run Script phase that Paul adds in Xcode
 
 ## Next
 

@@ -5,7 +5,7 @@
 # Runs every test suite, and exits non-zero if any of them fails:
 #   1. Unit tests (Swift Testing) for ObfuscateKit    swift test
 #   2. End-to-end tests of the obfuscate binary        Scripts/test-obfuscate.sh
-#   3. Tests of the install scripts                    Scripts/test-install-scripts.sh
+#   3. Tests of the install and SwiftLint scripts      Scripts/test-install-scripts.sh
 #
 #     Scripts/test-all.sh
 #
@@ -46,7 +46,7 @@ summary() {
 
 run_suite "Unit tests" bash -c 'cd ObfuscateKit && swift test'
 run_suite "End-to-end tests" Scripts/test-obfuscate.sh
-run_suite "Install-script tests" Scripts/test-install-scripts.sh
+run_suite "Build-script tests" Scripts/test-install-scripts.sh
 
 echo
 if [ ${#FAILED_SUITES[@]} -eq 0 ]; then

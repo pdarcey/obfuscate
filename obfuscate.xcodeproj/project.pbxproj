@@ -84,6 +84,7 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = C9E142A12EB8921A004ED6DA /* Build configuration list for PBXNativeTarget "obfuscate" */;
 			buildPhases = (
+				C9D7037130666E2300313066 /* Run Script (SwiftLint) */,
 				C9E142962EB8921A004ED6DA /* Sources */,
 				C9E142972EB8921A004ED6DA /* Frameworks */,
 				C9663F462EB8CFA90078681C /* CopyFiles */,
@@ -165,6 +166,25 @@
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
 			shellScript = "\"${SRCROOT}/Scripts/install-man-page.sh\"\n";
+		};
+		C9D7037130666E2300313066 /* Run Script (SwiftLint) */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Run Script (SwiftLint)";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "\"${SRCROOT}/Scripts/swiftlint.sh\"\n";
 		};
 		C9E142A92EB8BAB6004ED6DA /* Run Script (install to /usr/local/bin) */ = {
 			isa = PBXShellScriptBuildPhase;
