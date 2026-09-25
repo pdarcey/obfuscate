@@ -51,7 +51,7 @@ struct Obfuscate: ParsableCommand {
             "0x\(String(format:"%02X", x))"
         }.joined(separator: ", ")
 
-        var keys = ""
+        var keys: [String] = []
         var playgrounds = ""
         var index = 1
         var checkDict: [ String: Encrypted] = [:]
@@ -65,23 +65,25 @@ struct Obfuscate: ParsableCommand {
             }.joined(separator: ", ")
 
 
+            // Never include the secret itself in the output, not even in a comment:
+            // the generated file is meant to be committed to source control.
             let key = """
-            // Key for \(secret)
-            // **Important!** Replace the above comment
-            static var apiKey\(index): String {
-                let a: [UInt8] = [
-                    \(aByteString)
-                ]
-            
-                let b: [UInt8] = [
-                    \(bByteString)
-                ]
-            
-                return decrypt(a, b)
-            }
-            
+                /// Obfuscated secret \(index).
+                ///
+                /// Rename `apiKey\(index)` (here and in the `#Playground` below) to describe what it's for.
+                static var apiKey\(index): String {
+                    let a: [UInt8] = [
+                        \(aByteString)
+                    ]
+
+                    let b: [UInt8] = [
+                        \(bByteString)
+                    ]
+
+                    return decrypt(a, b)
+                }
             """
-            keys += key
+            keys.append(key)
 
             let playground = "let check\(index) = Secrets.apiKey\(index)\n"
             playgrounds += playground
@@ -107,9 +109,9 @@ struct Obfuscate: ParsableCommand {
             private static let salt: [UInt8] = [
                 \(saltString)
             ]
-            
-            \(keys)
-            
+
+        \(keys.joined(separator: "\n\n"))
+
             /// Decrypt some bytes and return the clear text
             /// - Parameters:
             ///   - content: The encrypted content to be decrypted
