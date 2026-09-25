@@ -9,9 +9,9 @@
 
  ---------------------------------------------------- */
 
-import Foundation
 import ArgumentParser
-import CryptoKit
+import Foundation
+import ObfuscateKit
 
 /// CLI command `obfuscate`, which generates a Swift file that obfuscates secrets such as API keys.
 ///
@@ -72,26 +72,14 @@ struct Obfuscate: ParsableCommand {
     }
 
     /// Every secret to obfuscate: the `--key` secrets first, in order, then the plain ones as `apiKey1`, `apiKey2`, …
-    /// - Throws: `ValidationError` if there are no secrets, a `--key` is malformed, or two secrets share a name.
+    /// - Throws: `ValidationError` (a usage error, exit status 64) if there are no secrets, a `--key` is malformed,
+    ///   or two secrets share a name.
     func allSecrets() throws -> [NamedSecret] {
-        let named = try key.enumerated().map { offset, argument in
-            try NamedSecret(parsing: argument, position: offset + 1)
+        do {
+            return try SecretList.make(named: key, plain: secrets)
+        } catch {
+            throw ValidationError(error.errorDescription ?? "Invalid input.")
         }
-        let unnamed = secrets.enumerated().map { offset, value in
-            NamedSecret(value: value, number: offset + 1)
-        }
-        let all = named + unnamed
-
-        guard !all.isEmpty else {
-            throw ValidationError("Provide at least one secret, either as an argument or with --key name=secret.")
-        }
-
-        var seenNames: Set<String> = []
-        for secret in all where !seenNames.insert(secret.name).inserted {
-            throw ValidationError("The name '\(secret.name)' is used more than once. Each secret needs its own name.")
-        }
-
-        return all
     }
 
     mutating func run() throws {
@@ -116,9 +104,9 @@ struct Obfuscate: ParsableCommand {
     func generate() throws {
         let secrets = try allSecrets()
         var properties: [String] = []
-        var checks: [(secret: NamedSecret, encrypted: Encrypted)] = []
+        var checks: [(secret: NamedSecret, encrypted: EncryptedSecret)] = []
         for secret in secrets {
-            let encrypted = try encrypt(secret.value)
+            let encrypted = try SecretCipher.encrypt(secret.value)
             properties.append(GeneratedSource.property(for: secret, encrypted: encrypted))
             checks.append((secret, encrypted))
         }
@@ -154,71 +142,17 @@ struct Obfuscate: ParsableCommand {
     ///
     /// - Parameter checks: Each secret, with the encrypted form that the generated file will contain.
     /// - Throws: `ExitCode.failure` if any secret fails to decode correctly.
-    func verifyRoundTrip(_ checks: [(secret: NamedSecret, encrypted: Encrypted)]) throws {
+    func verifyRoundTrip(_ checks: [(secret: NamedSecret, encrypted: EncryptedSecret)]) throws {
         var standardError = StandardError()
-        var allPassed = true
+        let results = checks.map { RoundTripResult(checking: $0.secret, encrypted: $0.encrypted) }
 
-        for (secret, encrypted) in checks {
-            do {
-                if try decrypt(encrypted.content, encrypted.key) == secret.value {
-                    print("✅ \(secret.name) decodes correctly", to: &standardError)
-                } else {
-                    print("❌ \(secret.name) didn't decode to the original secret", to: &standardError)
-                    allPassed = false
-                }
-            } catch {
-                let reason = [error.errorDescription, error.failureReason].compactMap { $0 }.joined(separator: " ")
-                print("❌ \(secret.name) couldn't be decrypted: \(reason)", to: &standardError)
-                allPassed = false
-            }
+        for result in results {
+            print(result.report, to: &standardError)
         }
 
-        guard allPassed else {
+        guard results.allSatisfy(\.passed) else {
             print("error: Check failed, so no output was written.", to: &standardError)
             throw ExitCode.failure
         }
-    }
-
-    /// Struct to hold encrypted content and the key used to encrypt it
-    struct Encrypted {
-        let content: [UInt8]
-        let key: [UInt8]
-    }
-
-    /// Encrypts clearText using the ChaChaPoly algorithm, with a new random key.
-    /// - Parameter clearText: Any text to encrypt
-    /// - Returns: An ``Encrypted`` struct, containing the encrypted text plus the key used to encrypt it
-    /// - Throws: ``ObfuscateError/encryptionFailed(underlying:)`` if CryptoKit can't encrypt it.
-    func encrypt(_ clearText: String) throws(ObfuscateError) -> Encrypted {
-        let key = SymmetricKey(size: .bits256)
-        let keyBytes = key.withUnsafeBytes { [UInt8]($0) }
-        do {
-            let sealedBox = try ChaChaPoly.seal(Data(clearText.utf8), using: key)
-            return Encrypted(content: [UInt8](sealedBox.combined), key: keyBytes)
-        } catch {
-            throw ObfuscateError.encryptionFailed(underlying: error)
-        }
-    }
-
-    /// Decrypts some bytes and returns the clear text.
-    /// - Parameters:
-    ///   - content: The encrypted content to be decrypted
-    ///   - key: The key to use to decrypt it
-    /// - Returns: The decrypted string
-    /// - Throws: ``ObfuscateError/decryptionFailed(underlying:)`` if CryptoKit can't decrypt it, or
-    ///   ``ObfuscateError/invalidUTF8`` if the result isn't valid UTF-8.
-    func decrypt(_ content: [UInt8], _ key: [UInt8]) throws(ObfuscateError) -> String {
-        let decrypted: Data
-        do {
-            let sealedBox = try ChaChaPoly.SealedBox(combined: Data(content))
-            decrypted = try ChaChaPoly.open(sealedBox, using: SymmetricKey(data: Data(key)))
-        } catch {
-            throw ObfuscateError.decryptionFailed(underlying: error)
-        }
-
-        guard let clearText = String(bytes: decrypted, encoding: .utf8) else {
-            throw ObfuscateError.invalidUTF8
-        }
-        return clearText
     }
 }

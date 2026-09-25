@@ -10,7 +10,7 @@ Current version: **1.0.0** (`Obfuscate.version` in `obfuscate/obfuscate.swift`).
 
 - Language: Swift 6 language mode (complete strict concurrency), built with Xcode 27
 - Platform: macOS 26 or later
-- Frameworks: CryptoKit, Foundation, [swift-argument-parser](https://github.com/apple/swift-argument-parser) 1.6.2 (pinned in `Package.resolved`, which is deliberately tracked)
+- Frameworks: CryptoKit, Foundation, [swift-argument-parser](https://github.com/apple/swift-argument-parser) 1.8.2 (pinned in `Package.resolved`, which is deliberately tracked)
 - Database: none
 - Issue tracking: Clarity (project "obfuscate")
 
@@ -18,6 +18,8 @@ Current version: **1.0.0** (`Obfuscate.version` in `obfuscate/obfuscate.swift`).
 
 - **Build:** Product ▸ Build (⌘B) in Xcode, or via the Xcode MCP `BuildProject`. Every build installs `obfuscate` to `/usr/local/bin` and the man page to `/usr/local/share/man/man1` (Debug builds add a note to the build log).
 - **Release build:** `xcodebuild -scheme obfuscate -configuration Release build`
+- **All tests:** `Scripts/test-all.sh` (unit, end-to-end and install-script suites, with a one-line summary each; run before every commit)
+- **Unit tests:** `cd ObfuscateKit && swift test` (Swift Testing)
 - **End-to-end tests:** `Scripts/test-obfuscate.sh` (tests the `obfuscate` on the `PATH`, or `OBFUSCATE=/path/to/obfuscate`)
 - **Install-script tests:** `Scripts/test-install-scripts.sh` (uses temporary folders only)
 - **Lint:** `swiftlint` from the repository root (must report 0 findings before committing)
@@ -25,19 +27,29 @@ Current version: **1.0.0** (`Obfuscate.version` in `obfuscate/obfuscate.swift`).
 ## Architecture
 
 ```
-obfuscate/                    The command-line tool (synchronised Xcode group)
-  obfuscate.swift             @main ParsableCommand: options, validation, generate(), --check, encrypt/decrypt
-  NamedSecret.swift           Parses and validates --key name=secret; generated names (apiKey1, …)
-  GeneratedSource.swift       The template for the generated Secrets.swift
-  ObfuscateError.swift        LocalizedError for encryption/decryption failures
+obfuscate/                    The command-line tool (synchronised Xcode group); only the command-line parts
+  obfuscate.swift             @main ParsableCommand: options, validation, generate(), --check output
   StandardError.swift         TextOutputStream for stderr
-  UInt8+HexLiteral.swift      0x0F-style byte literals
   obfuscate.1                 The man page (installed by the build)
+ObfuscateKit/                 Local Swift package with the core logic, linked to the obfuscate target
+  Sources/ObfuscateKit/
+    NamedSecret.swift         Parses and validates --key name=secret; generated names (apiKey1, …); reserved names
+    SecretList.swift          Builds the full, validated list of secrets (order, duplicates, none)
+    InputError.swift          LocalizedError for bad input (the tool turns it into a usage error, exit 64)
+    SecretCipher.swift        ChaCha20-Poly1305 encrypt/decrypt with a new random key per secret
+    EncryptedSecret.swift     The sealed box (alice) and key (bob)
+    RoundTripResult.swift     One --check result, with a report that never includes the secret
+    GeneratedSource.swift     The template for the generated Secrets.swift
+    ObfuscateError.swift      LocalizedError for encryption/decryption failures
+    UInt8+HexLiteral.swift    0x0F-style byte literals
+  Tests/ObfuscateKitTests/    Swift Testing unit tests
 Scripts/                      Build-phase scripts and the shell test suites
 Documentation/                This file, Journal, Plan, Status
 ```
 
-Flow: `run()` → `generate()` → `allSecrets()` (validated `NamedSecret`s) → `encrypt` each → `GeneratedSource.property` / `.file` → optional `verifyRoundTrip` (`--check`) → write to `-f` file or stdout.
+Flow: `run()` → `generate()` → `allSecrets()` (`SecretList.make`) → `SecretCipher.encrypt` each → `GeneratedSource.property` / `.file` → optional `verifyRoundTrip` (`RoundTripResult` per secret, for `--check`) → write to `-f` file or stdout.
+
+Put new logic in `ObfuscateKit` (with unit tests); keep the tool to argument parsing and I/O. `ObfuscateKit` must not depend on ArgumentParser.
 
 ## Environment Variables
 
@@ -55,8 +67,8 @@ None required by the tool. The scripts read (all optional, with defaults):
 - **Exit codes:** 0 success; 1 failed check/write/encryption (`ExitCode.failure`); 64 usage errors (ArgumentParser's `ValidationError`).
 - **The generated file must stay clean in apps:** compile with `-swift-version 6 -warnings-as-errors`, pass SwiftLint's default rules, lines ≤ 120 characters, exactly one trailing newline. The tests enforce this.
 - **Keep the Readme example in sync:** `test-obfuscate.sh` runs the command after `<!-- sample-command -->` and compares its output with the block between the `sample-output` markers (bytes masked). If you change the generated format, regenerate that block.
-- **Reserved `--key` names** (`NamedSecret.reservedNames`) must include every member of the generated `Secrets` enum. Add to it whenever the template gains a member.
-- Every new behaviour gets a test in the shell suites (and, once available, in the unit tests).
+- **Reserved `--key` names** (`NamedSecret.reservedNames`) must include every member of the generated `Secrets` enum. Add to it whenever the template gains a member (a unit test fails if you forget).
+- Every new behaviour gets tests: unit tests in `ObfuscateKit` for logic, and the shell suites for the tool's output, exit codes and files.
 - Australian English in comments and docs; DocC comments on all types and functions; one type per file.
 
 ## Gotchas
@@ -67,3 +79,5 @@ None required by the tool. The scripts read (all optional, with defaults):
 - **ArgumentParser runs `validate()` before reporting unknown options**, so `obfuscate -v` alone says "Provide at least one secret" (#419).
 - **SourceKit shows "No such module 'ArgumentParser'"** and cross-file "Cannot find type" errors when indexing files on their own. The real Xcode build is authoritative.
 - **Don't run an edit and a build in the same parallel batch.** The build may not include the edit.
+- **Xcode can't run ObfuscateKit's unit tests from this project.** A local package added as a dependency doesn't expose its test target: it can't be added to the `obfuscate` scheme or a test plan, and the auto-generated `ObfuscateKit` scheme runs 0 tests. Use `swift test` or `Scripts/test-all.sh`. (Opening `ObfuscateKit/Package.swift` on its own does give ⌘U.)
+- **Adding or changing packages in Xcode re-resolves dependencies.** Check `Package.resolved` in the diff for unintended version changes.

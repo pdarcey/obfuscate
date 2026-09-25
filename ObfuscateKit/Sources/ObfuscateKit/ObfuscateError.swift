@@ -17,7 +17,7 @@ import Foundation
 /// is reported clearly and the tool exits with an error, rather than crashing on a `try!`.
 ///
 /// - Important: No case carries the secret itself, so none of the messages can reveal it.
-enum ObfuscateError: Error, LocalizedError {
+public enum ObfuscateError: Error, LocalizedError {
     /// CryptoKit couldn't encrypt a secret.
     case encryptionFailed(underlying: any Error)
 
@@ -28,7 +28,7 @@ enum ObfuscateError: Error, LocalizedError {
     case invalidUTF8
 
     /// What went wrong.
-    var errorDescription: String? {
+    public var errorDescription: String? {
         switch self {
         case .encryptionFailed:
             "Couldn't encrypt a secret."
@@ -40,7 +40,7 @@ enum ObfuscateError: Error, LocalizedError {
     }
 
     /// Why it went wrong.
-    var failureReason: String? {
+    public var failureReason: String? {
         switch self {
         case .encryptionFailed(let underlying), .decryptionFailed(let underlying):
             "CryptoKit reported: \(underlying.localizedDescription)"
@@ -50,12 +50,12 @@ enum ObfuscateError: Error, LocalizedError {
     }
 
     /// What the user can do about it.
-    var recoverySuggestion: String? {
+    public var recoverySuggestion: String? {
         "This should never happen. Please report it, with the command you ran (but not your secrets)."
     }
 
     /// There's no Help Book for a command-line tool, so there's nothing to link to.
-    var helpAnchor: String? {
+    public var helpAnchor: String? {
         nil
     }
 
@@ -63,7 +63,7 @@ enum ObfuscateError: Error, LocalizedError {
     ///
     /// ArgumentParser only prints ``errorDescription`` for a thrown error, so the tool uses this
     /// to show the user all three.
-    var fullMessage: String {
+    public var fullMessage: String {
         [errorDescription, failureReason, recoverySuggestion]
             .compactMap { $0 }
             .joined(separator: "\n")

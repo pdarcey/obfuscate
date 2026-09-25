@@ -9,8 +9,6 @@
 
  ---------------------------------------------------- */
 
-import ArgumentParser
-
 /// A secret to obfuscate, paired with the name of the generated `Secrets` property that returns it.
 ///
 /// Names come from one of two places:
@@ -19,10 +17,13 @@ import ArgumentParser
 ///
 /// - Important: ``value`` is the plaintext secret. It must never be written to the generated file,
 ///   and never included in an error message.
-struct NamedSecret: Equatable {
+public struct NamedSecret: Equatable, Sendable {
     /// Names that can't be used for a generated property: Swift keywords, plus the members
     /// the generated `Secrets` enum already has.
-    static let reservedNames: Set<String> = [
+    ///
+    /// - Important: Whenever ``GeneratedSource`` adds a member to `Secrets`, add its name here.
+    ///   A unit test checks that every member of the generated enum is listed.
+    public static let reservedNames: Set<String> = [
         // Existing members of the generated `Secrets` enum
         "decrypt", "ObfuscateError",
         // Swift keywords that would stop the generated file compiling
@@ -35,19 +36,19 @@ struct NamedSecret: Equatable {
     ]
 
     /// The name of the generated `Secrets` property.
-    let name: String
+    public let name: String
 
     /// The plaintext secret. Never written to the generated file.
-    let value: String
+    public let value: String
 
     /// `true` when ``name`` was generated (`apiKey1`, …) rather than chosen by the user.
-    let hasGeneratedName: Bool
+    public let hasGeneratedName: Bool
 
     /// Creates a secret with a generated name, for a secret passed as a plain argument.
     /// - Parameters:
     ///   - value: The plaintext secret.
     ///   - number: The secret's 1-based position among the unnamed secrets, giving `apiKey<number>`.
-    init(value: String, number: Int) {
+    public init(value: String, number: Int) {
         self.name = "apiKey\(number)"
         self.value = value
         self.hasGeneratedName = true
@@ -58,36 +59,28 @@ struct NamedSecret: Equatable {
     /// The name is everything before the **first** `=`, so the secret itself may contain `=`
     /// (for example, base64 padding).
     ///
-    /// Error messages identify the argument by its position rather than echoing it, because the
-    /// text before `=` may actually be part of a secret (e.g. `--key abc/def==` with no name).
-    ///
     /// - Parameters:
     ///   - argument: The raw `--key` value.
     ///   - position: The 1-based position of this `--key` on the command line, used in error messages.
-    /// - Throws: `ValidationError` if there's no `=`, the name isn't a valid Swift identifier,
+    /// - Throws: ``InputError`` if there's no `=`, the name isn't a valid Swift identifier,
     ///   the name is reserved, or the secret is empty.
-    init(parsing argument: String, position: Int) throws {
+    public init(parsing argument: String, position: Int) throws(InputError) {
         guard let separator = argument.firstIndex(of: "=") else {
-            throw ValidationError("--key #\(position) must be in the form name=secret, but it has no '='.")
+            throw .missingSeparator(position: position)
         }
 
         let name = String(argument[..<separator])
         let value = String(argument[argument.index(after: separator)...])
 
         guard Self.isValidIdentifier(name) else {
-            throw ValidationError(
-                "--key #\(position): the name before '=' must start with a letter or underscore, "
-                + "and contain only letters, digits and underscores."
-            )
+            throw .invalidName(position: position)
         }
         guard !Self.reservedNames.contains(name) else {
-            throw ValidationError(
-                "--key #\(position): '\(name)' is reserved in Swift or in Secrets. Choose another name."
-            )
+            throw .reservedName(position: position, name: name)
         }
         guard !value.isEmpty else {
-            // Don't echo `name`: `--key QWxh=` may be an unnamed base64 secret, not a name.
-            throw ValidationError("--key #\(position): the secret after '=' is empty.")
+            // The error doesn't carry `name`: `--key QWxh=` may be an unnamed base64 secret, not a name.
+            throw .emptySecret(position: position)
         }
 
         self.name = name
@@ -97,7 +90,7 @@ struct NamedSecret: Equatable {
 
     /// Whether `name` is a plain ASCII Swift identifier: a letter or underscore, followed by
     /// letters, digits or underscores.
-    static func isValidIdentifier(_ name: String) -> Bool {
+    public static func isValidIdentifier(_ name: String) -> Bool {
         guard let first = name.first, first == "_" || (first.isASCII && first.isLetter) else {
             return false
         }

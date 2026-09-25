@@ -254,12 +254,14 @@ Secrets passed on the command line are saved in your shell history. In zsh, with
 
 ## Development
 
-- The tool's source is in `obfuscate/`. The template for the generated file is in `GeneratedSource.swift`.
+- The command-line tool is in `obfuscate/`. The core logic (parsing, encryption, and the template for the generated file) is in the local Swift package `ObfuscateKit/`.
 - The build's install steps are shell scripts in `Scripts/`, which the Xcode build phases call.
 - Project notes (conventions, gotchas, plan, status and a development journal) are in `Documentation/`.
 - Run the tests from the repository root:
 
   ```bash
+  Scripts/test-all.sh               # all of the below, with a summary of each
+  (cd ObfuscateKit && swift test)   # unit tests (Swift Testing)
   Scripts/test-obfuscate.sh         # end-to-end tests of the installed obfuscate
   Scripts/test-install-scripts.sh   # tests of the install scripts, in temporary folders
   ```

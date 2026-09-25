@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		C960B2773066655500C70675 /* ObfuscateKit in Frameworks */ = {isa = PBXBuildFile; productRef = C960B2763066655500C70675 /* ObfuscateKit */; };
 		C9E142A62EB8923F004ED6DA /* ArgumentParser in Frameworks */ = {isa = PBXBuildFile; productRef = C9E142A52EB8923F004ED6DA /* ArgumentParser */; };
 /* End PBXBuildFile section */
 
@@ -52,6 +53,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				C960B2773066655500C70675 /* ObfuscateKit in Frameworks */,
 				C9E142A62EB8923F004ED6DA /* ArgumentParser in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -98,6 +100,7 @@
 			name = obfuscate;
 			packageProductDependencies = (
 				C9E142A52EB8923F004ED6DA /* ArgumentParser */,
+				C960B2763066655500C70675 /* ObfuscateKit */,
 			);
 			productName = obfuscate;
 			productReference = C9E1429A2EB8921A004ED6DA /* obfuscate */;
@@ -129,6 +132,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				C9E142A42EB8923F004ED6DA /* XCRemoteSwiftPackageReference "swift-argument-parser" */,
+				C960B2753066655500C70675 /* XCLocalSwiftPackageReference "ObfuscateKit" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = C9E1429B2EB8921A004ED6DA /* Products */;
@@ -380,6 +384,13 @@
 		};
 /* End XCConfigurationList section */
 
+/* Begin XCLocalSwiftPackageReference section */
+		C960B2753066655500C70675 /* XCLocalSwiftPackageReference "ObfuscateKit" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = ObfuscateKit;
+		};
+/* End XCLocalSwiftPackageReference section */
+
 /* Begin XCRemoteSwiftPackageReference section */
 		C9E142A42EB8923F004ED6DA /* XCRemoteSwiftPackageReference "swift-argument-parser" */ = {
 			isa = XCRemoteSwiftPackageReference;
@@ -392,6 +403,10 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		C960B2763066655500C70675 /* ObfuscateKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = ObfuscateKit;
+		};
 		C9E142A52EB8923F004ED6DA /* ArgumentParser */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = C9E142A42EB8923F004ED6DA /* XCRemoteSwiftPackageReference "swift-argument-parser" */;

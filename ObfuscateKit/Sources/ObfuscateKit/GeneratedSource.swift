@@ -16,13 +16,13 @@
 ///
 /// - Important: The generated file is meant to be committed to source control, so nothing here may
 ///   ever include a secret's plaintext value, not even in a comment.
-enum GeneratedSource {
+public enum GeneratedSource {
     /// The complete `Secrets.swift` file.
     /// - Parameters:
     ///   - properties: The source of each secret's property, from ``property(for:encrypted:)``.
     ///   - propertyNames: The name of each property, in the same order, for the `#Playground` block.
     /// - Returns: The Swift source, ending with a single newline.
-    static func file(properties: [String], propertyNames: [String]) -> String {
+    public static func file(properties: [String], propertyNames: [String]) -> String {
         // `_ =` rather than a named `let`, which would be an unused-variable warning.
         let playgroundChecks = propertyNames
             .map { "    _ = try Secrets.\($0)" }
@@ -51,7 +51,7 @@ enum GeneratedSource {
     ///     never written.
     ///   - encrypted: The secret's encrypted content and key, written as byte arrays.
     /// - Returns: The property's source, indented to sit inside `enum Secrets`.
-    static func property(for secret: NamedSecret, encrypted: Obfuscate.Encrypted) -> String {
+    public static func property(for secret: NamedSecret, encrypted: EncryptedSecret) -> String {
         let contentBytes = byteArrayElements(encrypted.content)
         let keyBytes = byteArrayElements(encrypted.key)
 
