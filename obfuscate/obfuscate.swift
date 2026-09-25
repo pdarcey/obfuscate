@@ -123,7 +123,8 @@ struct Obfuscate: ParsableCommand {
         }
 
         guard let fileName else {
-            print(outputString)
+            // The source already ends with a newline.
+            print(outputString, terminator: "")
             return
         }
 

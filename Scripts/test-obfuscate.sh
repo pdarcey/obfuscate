@@ -233,7 +233,7 @@ echo "A corrupted secret throws Secrets.ObfuscateError.decryptionFailed"
 python3 - Saved.swift Corrupted.swift <<'PY'
 import re, sys
 source = open(sys.argv[1]).read()
-match = re.search(r"let a: \[UInt8\] = \[\s*0x([0-9A-F]{2})", source)
+match = re.search(r"let alice: \[UInt8\] = \[\s*0x([0-9A-F]{2})", source)
 flipped = "0x%02X" % (int(match.group(1), 16) ^ 0x01)
 open(sys.argv[2], "w").write(source[:match.start(1) - 2] + flipped + source[match.end(1):])
 PY
@@ -271,8 +271,8 @@ if swiftc -o seal seal.swift > compile.log 2>&1 && ./seal > sealed.txt; then
 import re, sys
 source = open(sys.argv[1]).read()
 content, key = open(sys.argv[3]).read().splitlines()
-source = re.sub(r"(let a: \[UInt8\] = \[\s*)[^\]]*?(\s*\])", lambda m: m.group(1) + content + m.group(2), source, count=1)
-source = re.sub(r"(let b: \[UInt8\] = \[\s*)[^\]]*?(\s*\])", lambda m: m.group(1) + key + m.group(2), source, count=1)
+source = re.sub(r"(let alice: \[UInt8\] = \[\s*)[^\]]*?(\s*\])", lambda m: m.group(1) + content + m.group(2), source, count=1)
+source = re.sub(r"(let bob: \[UInt8\] = \[\s*)[^\]]*?(\s*\])", lambda m: m.group(1) + key + m.group(2), source, count=1)
 open(sys.argv[2], "w").write(source)
 PY
     catch_program apiKey1 > main.swift
@@ -290,6 +290,35 @@ PY
 else
     fail "helper that seals non-UTF-8 bytes compiles and runs"
     sed 's/^/      /' compile.log
+fi
+
+echo "Generated file is warning-free and lint-clean in apps"
+
+check "-f file ends with exactly one newline" \
+    sh -c '[ "$(tail -c 1 Saved.swift | xxd -p)" = "0a" ] && [ "$(tail -c 2 Saved.swift | xxd -p)" != "0a0a" ]'
+check "stdout ends with exactly one newline" \
+    sh -c '[ "$(tail -c 1 Redirected.swift | xxd -p)" = "0a" ] && [ "$(tail -c 2 Redirected.swift | xxd -p)" != "0a0a" ]'
+check "#Playground uses _ = rather than named lets" \
+    sh -c 'grep -q "^    _ = try Secrets.sepName$" Redirected.swift && ! grep -q "let check" Redirected.swift'
+check "no single-letter byte arrays" sh -c '! grep -qE "let [ab]: \[UInt8\]" Redirected.swift'
+check "no line longer than 120 characters" sh -c '[ -z "$(awk "length > 120" Redirected.swift)" ]'
+
+echo 'print(try Secrets.sepName)' > main.swift
+if swiftc -swift-version 6 -warnings-as-errors -o strict Redirected.swift main.swift > compile.log 2>&1; then
+    pass "compiles in Swift 6 mode with warnings as errors"
+else
+    fail "compiles in Swift 6 mode with warnings as errors"
+    sed 's/^/      /' compile.log
+fi
+
+if command -v swiftlint > /dev/null; then
+    # Lint with the default rules, as an app with no special config would.
+    mkdir -p lint && cp Redirected.swift lint/Secrets.swift
+    LINT=$(cd lint && swiftlint lint --quiet Secrets.swift 2>&1)
+    check "SwiftLint (default rules) finds nothing" [ -z "$LINT" ]
+    [ -n "$LINT" ] && echo "$LINT" | sed 's/^/      /'
+else
+    echo "  ⏭️  skipping SwiftLint check (swiftlint not installed)"
 fi
 
 echo
