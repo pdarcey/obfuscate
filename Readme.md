@@ -146,3 +146,6 @@ Please make sure to update tests as appropriate.
 ## License
 
 [MIT](https://choosealicense.com/licenses/mit/)
+
+> © 2025 Xerodonia Pty Ltd, All rights reserved
+
