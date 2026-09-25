@@ -149,17 +149,18 @@
 			inputFileListPaths = (
 			);
 			inputPaths = (
-				"$(SRCROOT)/${PRODUCT_NAME}.1",
+				"$(SRCROOT)/$(PRODUCT_NAME)/$(PRODUCT_NAME).1",
+				"$(SRCROOT)/Scripts/install-man-page.sh",
 			);
 			name = "Run Script (install man page)";
 			outputFileListPaths = (
 			);
 			outputPaths = (
-				"/usr/local/share/man/man1/${PRODUCT_NAME}.1",
+				"/usr/local/share/man/man1/$(PRODUCT_NAME).1.gz",
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "#!/bin/sh\nMAN_DEST_DIR=\"/usr/local/share/man/man1\"\nmkdir -p \"$MAN_DEST_DIR\"\ncp \"${SRCROOT}/${PRODUCT_NAME}/${PRODUCT_NAME}.1\" \"$MAN_DEST_DIR/${PRODUCT_NAME}.1\"\ngzip -f \"$MAN_DEST_DIR/${PRODUCT_NAME}.1\"\n";
+			shellScript = "\"${SRCROOT}/Scripts/install-man-page.sh\"\n";
 		};
 		C9E142A92EB8BAB6004ED6DA /* Run Script (install to /usr/local/bin) */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -170,7 +171,8 @@
 			inputFileListPaths = (
 			);
 			inputPaths = (
-				"",
+				"$(BUILT_PRODUCTS_DIR)/$(PRODUCT_NAME)",
+				"$(SRCROOT)/Scripts/install-binary.sh",
 			);
 			name = "Run Script (install to /usr/local/bin)";
 			outputFileListPaths = (
@@ -180,7 +182,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "# Path to your built binary (adjust if needed)\nAPP_PATH=\"${BUILT_PRODUCTS_DIR}/${PRODUCT_NAME}\"\n\n# Destination\nDEST=\"/usr/local/bin/${PRODUCT_NAME}\"\n\n# Ensure /usr/local/bin exists\nmkdir -p /usr/local/bin\n\n# Copy the executable (use cp -f to overwrite)\ncp -f \"$APP_PATH\" \"$DEST\"\n\n# Make sure it's executable\nchmod +x \"$DEST\"\n\necho \"✅ Installed ${PRODUCT_NAME} to /usr/local/bin\"\n\n";
+			shellScript = "\"${SRCROOT}/Scripts/install-binary.sh\"\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
