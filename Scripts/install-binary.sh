@@ -32,7 +32,7 @@
 #   1  BUILT_PRODUCTS_DIR isn't set, the built binary is missing, or signing
 #      the installed copy failed.
 #
-# © 2025 Xerodonia Pty Ltd. All rights reserved
+# © 2025–2026 Xerodonia Pty Ltd. MIT License; see LICENSE.
 
 set -eu
 

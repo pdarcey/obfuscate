@@ -1,54 +1,137 @@
 .\" Manpage for obfuscate
-.TH OBFUSCATE 1 "November 2025" "1.0" "Obfuscate Manual"
+.\" © 2025–2026 Xerodonia Pty Ltd. MIT License; see LICENSE.
+.TH OBFUSCATE 1 "2026-09-25" "1.0.0" "Obfuscate Manual"
 .SH NAME
-obfuscate \- create a Swift file you can use in an app that obfuscates the input. Typically, the input is an API secret key.
+obfuscate \- generate a Swift file that obfuscates secrets such as API keys
 .SH SYNOPSIS
 .B obfuscate
-[\fIOPTIONS\fR] [\fIARGUMENTS\fR]
+.RB [ \-c ]
+.RB [ \-f
+.IR file ]
+.RB [ \-k
+.IR name = secret "] ..."
+.RI [ secret " ...]"
+.br
+.B obfuscate
+.B \-\-version
+|
+.B \-\-help
 .SH DESCRIPTION
-\fBobfuscate\fR is a command-line utility to create a Swift file you can use in an app that obfuscates the input.
-Typically, the input is an API secret key.
-
-The command will print the output to the console or, optionally, to a file in the cwd
-
-You then have a file that produces a `Secrets` enum, which allows you to retrieve the original API key without having the key anywhere in your source control system. It is also not directly within the `Secrets` file.
-
+.B obfuscate
+generates a Swift source file containing a
+.B Secrets
+enum, with one property per secret.
+Your app reads each secret with
+.BI "try Secrets." name \fR,
+so the secret never has to appear in your source code or source control.
+.PP
+Each secret is encrypted with ChaCha20-Poly1305 using its own random key, so every run produces different output.
+The generated file never contains a secret in plain text, not even in a comment.
+.PP
+The generated Swift is written to standard output, so it can be redirected to a file, or written to
+.I file
+with
+.BR \-f .
+All other messages, including errors and the results of
+.BR \-c ,
+go to standard error.
+.PP
+Reading a secret can throw
+.BR Secrets.ObfuscateError ,
+although it never should unless the generated file has been edited or corrupted.
+The app decides how to handle that error.
 .SH OPTIONS
 .TP
-.B -h, --help
-Show help message and exit.
+.BR \-c ", " \-\-check
+Check that every secret decodes correctly before writing any output.
+Reports a pass or fail for each secret, by name, on standard error; the secrets themselves are never printed.
+If any check fails, nothing is written and
+.B obfuscate
+exits with status 1.
 .TP
-.B -v, --version
-Display version information.
+.BR \-f ", " \-\-file\-name " \fIfile\fR"
+Write the generated Swift to
+.I file
+instead of standard output, adding
+.B .swift
+if necessary, and report
+.RI \(lq "Saved to file" \(rq
+on standard error.
 .TP
-.B -c, --check
-Check that every secret decodes correctly before writing any output. Reports a pass or fail for each secret, by name, on standard error; the secrets themselves are never printed. Exits with status 1 if any check fails.
+.BR \-k ", " \-\-key " \fIname\fR=\fIsecret\fR"
+A secret, and the name of the
+.B Secrets
+property that returns it.
+The name is everything before the first
+.BR = ,
+so the secret itself may contain
+.BR = .
+The name must be a Swift identifier (ASCII letters, digits and underscores, not starting with a digit).
+It can't be a Swift keyword,
+.BR decrypt ,
+.BR ObfuscateError ,
+or a name used by another secret.
+Repeat for more secrets.
 .TP
-.B -f, --fileName
-Write the generated Swift to this file instead of standard output. Adds \fB.swift\fR if necessary.
+.B \-\-version
+Show the version and exit.
 .TP
-.B -k, --key \fIname\fR=\fIsecret\fR
-A secret, and the name of the \fBSecrets\fR property that returns it. The name is everything before the first \fB=\fR, so the secret itself may contain \fB=\fR. Repeat for more secrets. Plain secrets passed as arguments are named \fBapiKey1\fR, \fBapiKey2\fR, and so on.
-
+.BR \-h ", " \-\-help
+Show help and exit.
 .SH ARGUMENTS
 .TP
-.B <input>
-The input you wish to obfuscate. Typically, an API key
-
+.I secret
+A secret to obfuscate, typically an API key.
+Plain secrets become the properties
+.BR apiKey1 ,
+.BR apiKey2 ,
+and so on, after any secrets given with
+.BR \-k .
+.SH EXIT STATUS
+.TP
+.B 0
+Success.
+.TP
+.B 1
+A check failed, the output file couldn't be written, or a secret couldn't be encrypted.
+.TP
+.B 64
+Invalid usage: no secrets, an invalid
+.BR \-k ,
+or an unknown option.
 .SH EXAMPLES
-.B obfuscate -h
-.br
-Show help information.
 .TP
-.B obfuscate ABCD1234
-.br
-Produce a Secrets file that will decode the obfuscated data back to ABCD1234
+.B obfuscate \-\-key openAI=sk\-abc123 \-\-key stripe=pk_live_xyz
+Print a Secrets file with the properties
+.B Secrets.openAI
+and
+.BR Secrets.stripe .
 .TP
-.B obfuscate --key openAI=sk-abc123 --key stripe=pk_live_xyz
-.br
-Produce a Secrets file with properties \fBSecrets.openAI\fR and \fBSecrets.stripe\fR
-
+.B obfuscate ABCD1234 EFGH5678
+Print a Secrets file with the properties
+.B Secrets.apiKey1
+and
+.BR Secrets.apiKey2 .
+.TP
+.B obfuscate \-c \-f Secrets \-\-key openAI=sk\-abc123
+Check that the secret decodes correctly, then write
+.BR Secrets.swift .
+.TP
+.B obfuscate \-\-key openAI=sk\-abc123 > Sources/Secrets.swift
+Redirect the generated Swift to a file of your choosing.
+.SH CAVEATS
+This is obfuscation, not encryption: the key for each secret is in the same file.
+It keeps secrets out of plain sight, but anyone motivated enough can recover them.
+.PP
+Secrets passed on the command line are saved in your shell history, and are briefly visible to other processes, for example in
+.BR ps (1).
+In
+.BR zsh (1),
+with
+.B setopt HIST_IGNORE_SPACE
+set, starting the command with a space keeps it out of the history.
+.SH SEE ALSO
+The technique is based on NSHipster's article on secret management:
+https://nshipster.com/secrets/
 .SH AUTHOR
-© 2005 Xerodonia Pty Ltd
-
-
+© 2025\(en2026 Xerodonia Pty Ltd. Released under the MIT License.

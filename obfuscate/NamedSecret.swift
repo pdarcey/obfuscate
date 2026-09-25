@@ -5,7 +5,7 @@
 
  Created by Paul Darcey on 25/9/2026
 
- © 2026 Xerodonia Pty Ltd. All rights reserved
+ © 2025–2026 Xerodonia Pty Ltd. MIT License; see LICENSE.
 
  ---------------------------------------------------- */
 
@@ -24,7 +24,7 @@ struct NamedSecret: Equatable {
     /// the generated `Secrets` enum already has.
     static let reservedNames: Set<String> = [
         // Existing members of the generated `Secrets` enum
-        "decrypt", "salt",
+        "decrypt", "ObfuscateError",
         // Swift keywords that would stop the generated file compiling
         "_", "Any", "Self", "Type", "as", "associatedtype", "await", "break", "case", "catch", "class",
         "continue", "default", "defer", "deinit", "do", "else", "enum", "extension", "fallthrough",

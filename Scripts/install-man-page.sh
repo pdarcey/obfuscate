@@ -18,7 +18,7 @@
 #      writable (a man page problem should never block a build).
 #   1  The man page source is missing.
 #
-# © 2025 Xerodonia Pty Ltd. All rights reserved
+# © 2025–2026 Xerodonia Pty Ltd. MIT License; see LICENSE.
 
 set -eu
 

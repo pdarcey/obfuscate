@@ -16,7 +16,7 @@
 #
 # Exits non-zero if any test fails.
 #
-# © 2025 Xerodonia Pty Ltd. All rights reserved
+# © 2025–2026 Xerodonia Pty Ltd. MIT License; see LICENSE.
 
 set -u
 
@@ -156,6 +156,8 @@ rejects "--key with a Swift keyword" "keyword-secret-1" "'class' is reserved" \
     --key "class=keyword-secret-1"
 rejects "--key named after a Secrets member" "member-secret-1" "'decrypt' is reserved" \
     --key "decrypt=member-secret-1"
+rejects "--key named after the nested error type" "error-type-secret-1" "'ObfuscateError' is reserved" \
+    --key "ObfuscateError=error-type-secret-1"
 rejects "duplicate --key names" "dup-secret-1" "'dup' is used more than once" \
     --key "dup=dup-secret-1" --key "dup=dup-secret-2"
 rejects "--key clashing with a generated name" "collide-secret-1" "'apiKey1' is used more than once" \
@@ -331,6 +333,31 @@ VERSION_OUTPUT=$("$OBFUSCATE" --version 2>&1)
 check "--version exits 0" [ $? -eq 0 ]
 check "--version prints exactly the version ($EXPECTED_VERSION)" [ "$VERSION_OUTPUT" = "$EXPECTED_VERSION" ]
 check "-h shows an overview" sh -c '"$1" -h | grep -q "^OVERVIEW: "' _ "$OBFUSCATE"
+
+echo "Readme example matches the real output"
+
+README="$SRCROOT/Readme.md"
+# The command is the first line of the code block after <!-- sample-command -->.
+SAMPLE_COMMAND=$(awk '/<!-- sample-command -->/ { getline; getline; print; exit }' "$README")
+check "Readme has a sample command" sh -c 'case "$1" in obfuscate\ *) ;; *) exit 1 ;; esac' _ "$SAMPLE_COMMAND"
+# The sample is the code block between the sample-output markers, without its fences.
+awk '/<!-- sample-output:start -->/ { inside = 1; getline; next }
+     /<!-- sample-output:end -->/ { inside = 0 }
+     inside' "$README" | sed '$d' > readme-sample.swift
+check "Readme has a sample output" [ -s readme-sample.swift ]
+
+eval "set -- ${SAMPLE_COMMAND#obfuscate }"
+"$OBFUSCATE" "$@" > actual-sample.swift 2> /dev/null
+# The bytes are random on every run, so compare with them masked.
+sed -E 's/0x[0-9A-F]{2}/0xNN/g' readme-sample.swift > readme-masked.swift
+sed -E 's/0x[0-9A-F]{2}/0xNN/g' actual-sample.swift > actual-masked.swift
+if cmp -s readme-masked.swift actual-masked.swift; then
+    pass "Readme sample matches '$SAMPLE_COMMAND' (bytes masked)"
+else
+    fail "Readme sample matches '$SAMPLE_COMMAND' (bytes masked)"
+    diff readme-masked.swift actual-masked.swift | head -20 | sed 's/^/      /'
+fi
+check_decodes readme-sample.swift openAI "sk-example-1234" apiKey1 "exampleKey"
 
 echo
 echo "$PASSED passed, $FAILED failed"

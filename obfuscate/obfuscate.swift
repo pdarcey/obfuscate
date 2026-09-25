@@ -5,7 +5,7 @@
 
  Created by Paul Darcey on 3/11/2025
 
- © 2025 Xerodonia Pty Ltd. All rights reserved
+ © 2025–2026 Xerodonia Pty Ltd. MIT License; see LICENSE.
 
  ---------------------------------------------------- */
 
@@ -13,16 +13,15 @@ import Foundation
 import ArgumentParser
 import CryptoKit
 
-/// CLI command `obfuscate` to create a Swift file you can use in an app that obfuscates the input.
-/// Typically, the input is an API secret key.
+/// CLI command `obfuscate`, which generates a Swift file that obfuscates secrets such as API keys.
 ///
-/// The command will print the output to the console or, optionally, to a file in the cwd
+/// The generated file contains a `Secrets` enum with one throwing property per secret, so an app can read a secret
+/// with `try Secrets.openAI` without the secret appearing in plain text in its source code or source control.
 ///
-/// You then have a file that produces a `Secrets` enum, which allows you to retrieve the original API key
-/// without having the key anywhere in your source control system. It is also not directly within the `Secrets` file.
+/// The generated Swift is written to stdout, or to a file with `-f`. Everything else goes to stderr.
 ///
-/// - Note: Each time the command is run, it will produce different output, because it generates a random seed for the
-/// encoding/decoding process.
+/// - Note: Each time the command is run, it produces different output, because every secret is encrypted with
+/// a new random key.
 ///
 /// - Note: This method of obfuscating secrets was based on a blog post at [NSHipster](https://nshipster.com/secrets/)
 ///

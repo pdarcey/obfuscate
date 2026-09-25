@@ -9,7 +9,7 @@
 #
 # Exits non-zero if any test fails.
 #
-# © 2025 Xerodonia Pty Ltd. All rights reserved
+# © 2025–2026 Xerodonia Pty Ltd. MIT License; see LICENSE.
 
 set -u
 

@@ -5,7 +5,7 @@
 
  Created by Paul Darcey on 25/9/2026
 
- © 2026 Xerodonia Pty Ltd. All rights reserved
+ © 2025–2026 Xerodonia Pty Ltd. MIT License; see LICENSE.
 
  ---------------------------------------------------- */
 
