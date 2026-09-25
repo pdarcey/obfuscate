@@ -1,0 +1,14 @@
+# SwiftLint configuration for obfuscate.
+#
+# Uses SwiftLint's default rules. The generated Secrets.swift is also tested
+# against the default rules (see Scripts/test-obfuscate.sh), because apps that
+# use it lint it with their own configuration.
+
+included:
+  - obfuscate
+  - ObfuscateKit/Sources
+  - ObfuscateKit/Tests
+
+excluded:
+  - "**/.build"
+  - "**/.swiftpm"

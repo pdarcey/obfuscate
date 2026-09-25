@@ -256,6 +256,7 @@ Secrets passed on the command line are saved in your shell history. In zsh, with
 
 - The tool's source is in `obfuscate/`. The template for the generated file is in `GeneratedSource.swift`.
 - The build's install steps are shell scripts in `Scripts/`, which the Xcode build phases call.
+- Project notes (conventions, gotchas, plan, status and a development journal) are in `Documentation/`.
 - Run the tests from the repository root:
 
   ```bash

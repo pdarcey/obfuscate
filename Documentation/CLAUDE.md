@@ -1,0 +1,69 @@
+# Obfuscate
+
+## Overview
+
+`obfuscate` is a macOS command-line tool that generates `Secrets.swift`: a `Secrets` enum with one throwing property per secret (typically an API key). Each secret is encrypted with ChaCha20-Poly1305 (CryptoKit) using its own random key, so the generated file can be committed without any secret appearing in plain text. It's obfuscation, not real security: the key is in the same file.
+
+Current version: **1.0.0** (`Obfuscate.version` in `obfuscate/obfuscate.swift`).
+
+## Tech Stack
+
+- Language: Swift 6 language mode (complete strict concurrency), built with Xcode 27
+- Platform: macOS 26 or later
+- Frameworks: CryptoKit, Foundation, [swift-argument-parser](https://github.com/apple/swift-argument-parser) 1.6.2 (pinned in `Package.resolved`, which is deliberately tracked)
+- Database: none
+- Issue tracking: Clarity (project "obfuscate")
+
+## Commands
+
+- **Build:** Product ▸ Build (⌘B) in Xcode, or via the Xcode MCP `BuildProject`. Every build installs `obfuscate` to `/usr/local/bin` and the man page to `/usr/local/share/man/man1` (Debug builds add a note to the build log).
+- **Release build:** `xcodebuild -scheme obfuscate -configuration Release build`
+- **End-to-end tests:** `Scripts/test-obfuscate.sh` (tests the `obfuscate` on the `PATH`, or `OBFUSCATE=/path/to/obfuscate`)
+- **Install-script tests:** `Scripts/test-install-scripts.sh` (uses temporary folders only)
+- **Lint:** `swiftlint` from the repository root (must report 0 findings before committing)
+
+## Architecture
+
+```
+obfuscate/                    The command-line tool (synchronised Xcode group)
+  obfuscate.swift             @main ParsableCommand: options, validation, generate(), --check, encrypt/decrypt
+  NamedSecret.swift           Parses and validates --key name=secret; generated names (apiKey1, …)
+  GeneratedSource.swift       The template for the generated Secrets.swift
+  ObfuscateError.swift        LocalizedError for encryption/decryption failures
+  StandardError.swift         TextOutputStream for stderr
+  UInt8+HexLiteral.swift      0x0F-style byte literals
+  obfuscate.1                 The man page (installed by the build)
+Scripts/                      Build-phase scripts and the shell test suites
+Documentation/                This file, Journal, Plan, Status
+```
+
+Flow: `run()` → `generate()` → `allSecrets()` (validated `NamedSecret`s) → `encrypt` each → `GeneratedSource.property` / `.file` → optional `verifyRoundTrip` (`--check`) → write to `-f` file or stdout.
+
+## Environment Variables
+
+None required by the tool. The scripts read (all optional, with defaults):
+
+- `OBFUSCATE`: the binary for `test-obfuscate.sh`
+- `BIN_DEST_DIR`, `MAN_DEST_DIR`: install destinations for the install scripts
+- Xcode-supplied: `SRCROOT`, `PRODUCT_NAME`, `BUILT_PRODUCTS_DIR`, `CONFIGURATION`, `EXPANDED_CODE_SIGN_IDENTITY`
+
+## Conventions
+
+- **Never hand-edit `project.pbxproj`.** Use the Xcode MCP (`XcodeWrite` to add files, `UpdateTargetBuildSetting`), or give Paul step-by-step Xcode instructions (e.g. for Run Script phases).
+- **Never output a secret.** Not in the generated file (not even a comment), not in error messages (identify a bad `--key` by position, e.g. `--key #2`), not in `--check` output (names only).
+- **stdout carries only the generated Swift.** Everything else goes to stderr via `StandardError`. With `-f`, nothing goes to stdout.
+- **Exit codes:** 0 success; 1 failed check/write/encryption (`ExitCode.failure`); 64 usage errors (ArgumentParser's `ValidationError`).
+- **The generated file must stay clean in apps:** compile with `-swift-version 6 -warnings-as-errors`, pass SwiftLint's default rules, lines ≤ 120 characters, exactly one trailing newline. The tests enforce this.
+- **Keep the Readme example in sync:** `test-obfuscate.sh` runs the command after `<!-- sample-command -->` and compares its output with the block between the `sample-output` markers (bytes masked). If you change the generated format, regenerate that block.
+- **Reserved `--key` names** (`NamedSecret.reservedNames`) must include every member of the generated `Secrets` enum. Add to it whenever the template gains a member.
+- Every new behaviour gets a test in the shell suites (and, once available, in the unit tests).
+- Australian English in comments and docs; DocC comments on all types and functions; one type per file.
+
+## Gotchas
+
+- **`INSTALL_DIR` is an Xcode build setting** (`/tmp/<project>.dst/usr/local/bin`). The install script uses `BIN_DEST_DIR` instead. Don't rename it.
+- **Run Script phases run before Xcode's CodeSign step**, so `install-binary.sh` signs the installed copy itself. An unsigned binary is killed on launch with exit 137.
+- **ArgumentParser only prints `errorDescription`** for a thrown `LocalizedError`, so `run()` catches `ObfuscateError` and prints the full message itself.
+- **ArgumentParser runs `validate()` before reporting unknown options**, so `obfuscate -v` alone says "Provide at least one secret" (#419).
+- **SourceKit shows "No such module 'ArgumentParser'"** and cross-file "Cannot find type" errors when indexing files on their own. The real Xcode build is authoritative.
+- **Don't run an edit and a build in the same parallel batch.** The build may not include the edit.
