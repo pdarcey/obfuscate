@@ -28,7 +28,7 @@ fi
 echo "Testing $OBFUSCATE"
 
 WORK=$(mktemp -d)
-trap 'rm -rf "$WORK"' EXIT
+trap 'chmod -R u+w "$WORK"; rm -rf "$WORK"' EXIT
 
 PASSED=0
 FAILED=0
@@ -160,6 +160,42 @@ rejects "--key clashing with a generated name" "collide-secret-1" "'apiKey1' is 
     --key "apiKey1=collide-secret-1" "plain-collide-2"
 rejects "--key identifies which one is wrong" "second-bad-secret" "--key #2" \
     --key "good=first-good-secret" --key "second-bad-secret"
+
+echo "Only the generated Swift goes to stdout"
+
+SEP_NAMED="sep-named-secret-7a6b"
+SEP_PLAIN="sep-plain-secret-3c2d"
+"$OBFUSCATE" -c --key "sepName=$SEP_NAMED" "$SEP_PLAIN" > Redirected.swift 2> stderr.txt
+check "-c with stdout redirected: exits 0" [ $? -eq 0 ]
+check "stdout starts with the generated Swift" [ "$(head -1 Redirected.swift)" = "import Foundation" ]
+check "stdout has no --check results" sh -c '! grep -qE "✅|❌|decodes" Redirected.swift'
+check "--check reports each secret by name on stderr" \
+    sh -c 'grep -q "✅ sepName decodes correctly" stderr.txt && grep -q "✅ apiKey1 decodes correctly" stderr.txt'
+for secret in "$SEP_NAMED" "$SEP_PLAIN"; do
+    check "redirected file doesn't contain: $secret" sh -c '! grep -qF -- "$1" Redirected.swift' _ "$secret"
+    check "--check doesn't print: $secret" sh -c '! grep -qF -- "$1" stderr.txt' _ "$secret"
+done
+check_decodes Redirected.swift sepName "$SEP_NAMED" apiKey1 "$SEP_PLAIN"
+check "every byte is a two-digit uppercase hex literal" \
+    sh -c '[ -z "$(grep -oE "0x[0-9A-Fa-f]+" Redirected.swift | grep -vE "^0x[0-9A-F]{2}$")" ]'
+
+"$OBFUSCATE" -f Saved "saved-secret-8e9f" > saved-stdout.txt 2> saved-stderr.txt
+check "-f: exits 0" [ $? -eq 0 ]
+check "-f: 'Saved to' goes to stderr" grep -q "^Saved to Saved.swift$" saved-stderr.txt
+check "-f: 'Saved to' isn't on stdout" sh -c '! grep -q "Saved to" saved-stdout.txt'
+check "-f: prints nothing to stdout" [ ! -s saved-stdout.txt ]
+check "-f: file contains the generated Swift" [ "$(head -1 Saved.swift)" = "import Foundation" ]
+check "-f: file doesn't contain the secret" sh -c '! grep -qF "saved-secret-8e9f" Saved.swift'
+check_decodes Saved.swift apiKey1 "saved-secret-8e9f"
+
+echo "Write failures exit non-zero"
+
+mkdir -p locked && chmod 555 locked
+"$OBFUSCATE" -f locked/Nope "unwritable-secret-4a5b" > locked-stdout.txt 2> locked-stderr.txt
+check "unwritable -f path: exits non-zero" [ $? -ne 0 ]
+check "unwritable -f path: reports an error: on stderr" grep -q "^error: Unable to write to locked/Nope.swift" locked-stderr.txt
+check "unwritable -f path: prints nothing to stdout" [ ! -s locked-stdout.txt ]
+check "unwritable -f path: doesn't echo the secret" sh -c '! grep -qF "unwritable-secret-4a5b" locked-stderr.txt'
 
 echo
 echo "$PASSED passed, $FAILED failed"

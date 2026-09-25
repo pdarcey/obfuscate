@@ -31,11 +31,17 @@ import CryptoKit
 @main
 struct Obfuscate: ParsableCommand {
     /// Flag to run a check that the output file will decode the input correctly
-    @Flag(name: .shortAndLong, help: "Run the decode function and print the result. Should equal the secret(s) input.")
+    @Flag(
+        name: .shortAndLong,
+        help: "Check every secret decodes correctly before writing any output. Reports pass/fail on stderr."
+    )
     var check = false
 
     /// You can optionally write the output to a file, so you can import it into your app
-    @Option(name: .shortAndLong, help: "The file to output to. [Will add .swift, if necessary]")
+    @Option(
+        name: .shortAndLong,
+        help: "Write the generated Swift to this file instead of stdout. [Will add .swift, if necessary]"
+    )
     var fileName: String? = nil
 
     /// Secrets with a chosen property name, each given as `name=secret`
@@ -84,9 +90,7 @@ struct Obfuscate: ParsableCommand {
         let salt = SymmetricKey(size: .bits256)
         let saltData = salt.withUnsafeBytes { Data(Array($0)) }
         let saltBytes = [UInt8](saltData)
-        let saltString = saltBytes.map { x in
-            "0x\(String(format:"%02X", x))"
-        }.joined(separator: ", ")
+        let saltString = saltBytes.map(\.hexLiteral).joined(separator: ", ")
 
         var keys: [String] = []
         var playgrounds = ""
@@ -94,13 +98,8 @@ struct Obfuscate: ParsableCommand {
         var checks: [(secret: NamedSecret, encrypted: Encrypted)] = []
         for secret in try allSecrets() {
             let encrypted = encrypt(secret.value)
-            let aByteString = encrypted.content.map { x in
-                "0x\(String(format:"%02X", x))"
-            }.joined(separator: ", ")
-            let bByteString = encrypted.key.map { x in
-                "0x\(String(format:"%02X", x))"
-            }.joined(separator: ", ")
-
+            let aByteString = encrypted.content.map(\.hexLiteral).joined(separator: ", ")
+            let bByteString = encrypted.key.map(\.hexLiteral).joined(separator: ", ")
 
             // Never include the secret itself in the output, not even in a comment:
             // the generated file is meant to be committed to source control.
@@ -175,32 +174,53 @@ struct Obfuscate: ParsableCommand {
         \(playgrounds)
         }
         """
-        print(outputString)
+        // The generated Swift goes to the file if one was given, otherwise to stdout.
+        // Everything else goes to stderr. Check first, so a failure never leaves output behind.
+        var standardError = StandardError()
 
-        if let fileName {
-            var newFileName = fileName
-            if !fileName.hasSuffix(".swift") {
-                newFileName = fileName + ".swift"
-            }
-            do {
-                try outputString.write(toFile: newFileName, atomically: true, encoding: .utf8)
-                print("\nSaved to \(newFileName)")
-            } catch {
-                print("Unable to write to \(newFileName). Error: \(error)")
+        if check {
+            try verifyRoundTrip(checks)
+        }
+
+        guard let fileName else {
+            print(outputString)
+            return
+        }
+
+        let path = fileName.hasSuffix(".swift") ? fileName : fileName + ".swift"
+        do {
+            try outputString.write(toFile: path, atomically: true, encoding: .utf8)
+        } catch {
+            print("error: Unable to write to \(path): \(error.localizedDescription)", to: &standardError)
+            throw ExitCode.failure
+        }
+        print("Saved to \(path)", to: &standardError)
+    }
+
+    /// Checks that every secret decodes back to its original value, reporting a pass or fail
+    /// for each on stderr.
+    ///
+    /// Only the property names are reported. The secrets and decoded values are never printed,
+    /// so they don't end up in terminal scrollback or screen shares.
+    ///
+    /// - Parameter checks: Each secret, with the encrypted form that the generated file will contain.
+    /// - Throws: `ExitCode.failure` if any secret fails to decode correctly.
+    func verifyRoundTrip(_ checks: [(secret: NamedSecret, encrypted: Encrypted)]) throws {
+        var standardError = StandardError()
+        var allPassed = true
+
+        for (secret, encrypted) in checks {
+            if decrypt(encrypted.content, encrypted.key) == secret.value {
+                print("✅ \(secret.name) decodes correctly", to: &standardError)
+            } else {
+                print("❌ \(secret.name) didn't decode to the original secret", to: &standardError)
+                allPassed = false
             }
         }
 
-        if check {
-            //            print("\n")
-            for (secret, encrypted) in checks {
-                let decoded = decrypt(encrypted.content, encrypted.key)
-                print("Decoding \(secret.name) produces:\n\(decoded)")
-                if decoded == secret.value {
-                    print("✅ Encoding and decoding works!")
-                } else {
-                    print("Fail!")
-                }
-            }
+        guard allPassed else {
+            print("error: Check failed, so no output was written.", to: &standardError)
+            throw ExitCode.failure
         }
     }
 

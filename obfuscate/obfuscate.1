@@ -22,10 +22,10 @@ Show help message and exit.
 Display version information.
 .TP
 .B -c, --check
-Flag to run a check that the output file will decode the input correctly
+Check that every secret decodes correctly before writing any output. Reports a pass or fail for each secret, by name, on standard error; the secrets themselves are never printed. Exits with status 1 if any check fails.
 .TP
 .B -f, --fileName
-You can optionally write the output to a file, so you can import it into your app
+Write the generated Swift to this file instead of standard output. Adds \fB.swift\fR if necessary.
 .TP
 .B -k, --key \fIname\fR=\fIsecret\fR
 A secret, and the name of the \fBSecrets\fR property that returns it. The name is everything before the first \fB=\fR, so the secret itself may contain \fB=\fR. Repeat for more secrets. Plain secrets passed as arguments are named \fBapiKey1\fR, \fBapiKey2\fR, and so on.
