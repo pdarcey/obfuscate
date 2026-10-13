@@ -98,6 +98,15 @@ A SwiftLint build phase that "runs fine" could just as easily be silently doing 
 - **A guard test for a whole class of bug.** Rather than testing that `ObfuscateError` is reserved, one unit test scans the generated `Secrets` enum for *every* member and checks each is a reserved `--key` name. It caught a deliberately recreated #420, and it will catch the next one too.
 - **ArgumentParser only prints `errorDescription`.** We found this by reading its source, not by guessing. `LocalizedError` has four properties (`errorDescription`, `failureReason`, `recoverySuggestion`, `helpAnchor`), so we print the rest ourselves.
 
+### A face for the tool (13 October 2026)
+
+`obfuscate` got a logo: a grid of hex bytes with half the cells blanked out in mint green, which is the whole tool in one picture. Paul chose it from five drafts, and all six of the command-line tools got the same treatment in one sitting, each with its own colour family so they can't be mistaken for one another.
+
+Two small things worth remembering:
+
+- **Markdown can't size an image.** `![logo](logo.png)` would show the full 1024 pixels, so the Readme uses `<img src="logo.png" width="128">`. `test-obfuscate.sh` reads the Readme to check the sample output, so we re-ran it after the edit (145 still passing). A Readme that tests depend on is code, and gets tested like code.
+- **The SVG keeps its digits as live text.** `logo.svg` draws the hex digits in Menlo. On a machine without Menlo they'd fall back to another monospaced font. The PNG is what people actually see, so we left it; converting the digits to outlines is the fix if it ever matters.
+
 ## 6. Engineer's Wisdom
 
 - **A tool's output is its API.** stdout, stderr and exit codes are a contract. Pipes and scripts depend on them just as much as code depends on a function signature.

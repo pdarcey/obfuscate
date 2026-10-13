@@ -1,6 +1,6 @@
 # Status
 
-*Last updated: 25 September 2026, end of session*
+*Last updated: 13 October 2026, end of session*
 
 ## Summary
 
@@ -34,8 +34,13 @@ Three issues are open: #419 (a misleading error message), #414 (reading secrets 
 - **#406, #408, #420:** Readme and man page rewritten; MIT licence; reserved `ObfuscateError` name fixed
 - **#411:** `.gitignore`, `.swiftlint.yml`, `.claude/`, `Documentation/`; `ObfuscateKit` package with 39 unit tests; `Scripts/test-all.sh`; SwiftLint build phase
 
+## Completed on 13 October 2026
+
+- **Logo:** `logo.png` (1024 × 1024, transparent corners) and `logo.svg` at the repo root, shown under the title in the Readme. Pushed to GitHub.
+- All three test suites re-run and passing (39 unit, 145 end-to-end, 42 build-script).
+
 ## Open
 
 - **#419:** unknown option on its own reports "Provide at least one secret" (the exit status, 64, is correct)
 - **#414:** read secrets from stdin, to keep them out of shell history and `ps`
-- **#421:** set `MARKETING_VERSION` to 1.0.0 so Clarity shows the right version
+- **#421:** set `MARKETING_VERSION` to 1.0.0 so Clarity shows the right version. On 13 October 2026 Clarity reported "v1.0.0 (22)" even though `MARKETING_VERSION` is still absent from `project.pbxproj`, so check whether this only needs verifying and closing
