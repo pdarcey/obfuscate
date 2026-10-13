@@ -1,5 +1,7 @@
 # Obfuscate
 
+<img src="logo.png" alt="obfuscate logo" width="128">
+
 `obfuscate` is a macOS command-line tool that generates a Swift file for keeping secrets, such as API keys, out of your source code. Your app reads each secret from the generated `Secrets` enum:
 
 ```swift
