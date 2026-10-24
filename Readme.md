@@ -1,6 +1,15 @@
+---
+name: obfuscate
+description: A macOS command-line tool that generates a Swift file for keeping secrets, such as API keys, out of your source code. Each secret is encrypted with its own random key, so the generated file can be committed safely.
+version: "1.0.0"
+readmeUpdated: 2026-10-24
+tags:
+  - CLI app
+---
+
 # Obfuscate
 
-<img src="logo.png" alt="obfuscate logo" width="128">
+<img src="logo.png" alt="obfuscate logo: a grid of white hexadecimal codes and mint-green squares, on a dark navy background" width="128" height="128" align="left" hspace="16">
 
 `obfuscate` is a macOS command-line tool that generates a Swift file for keeping secrets, such as API keys, out of your source code. Your app reads each secret from the generated `Secrets` enum:
 
@@ -17,6 +26,8 @@ The technique is based on a blog post at [NSHipster](https://nshipster.com/secre
 
 > [!NOTE]
 > Each time the command is run, it produces different output, because every secret is encrypted with a new random key.
+
+<br clear="left">
 
 ## Installation
 
